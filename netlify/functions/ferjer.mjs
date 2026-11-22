@@ -1,4 +1,4 @@
-// Ferjekompis — Entur proxy for Netlify Functions (Node 18+).
+import roadFerries from './road-ferries.json' with { type: 'json' };
 const API = 'https://api.entur.io/journey-planner/v3/graphql';
 const CLIENT = process.env.ENTUR_CLIENT_NAME || 'ferjekompis-web';
 const HEADERS = { 'content-type': 'application/json', 'ET-Client-Name': CLIENT };
@@ -38,11 +38,18 @@ export async function handler(event){
   const byId=new Map((data.stopPlaces||[]).filter(Boolean).map(s=>[s.id,s]));
   const output=await Promise.all(stops.map(async s=>{
     const details=byId.get(s.id);
-    const calls=(details?.estimatedCalls||[]).filter(c=>c.forBoarding && c.serviceJourney?.line?.transportMode==='water')
-     .map(c=>({aimed:c.aimedDepartureTime,expected:c.expectedDepartureTime,realtime:c.realtime,cancelled:c.cancellation,destination:c.destinationDisplay?.frontText||'',line:c.serviceJourney?.line?.name||'',lineId:c.serviceJourney?.line?.id||'',carFerry:/carFerry|roadFerryLink|cableFerry/i.test(c.serviceJourney?.line?.transportSubmode||'')}))
+    const calls=(details?.estimatedCalls||[]).filter(c=>{
+      const line=c.serviceJourney?.line;
+      return c.forBoarding && line?.transportMode==='water' && Object.hasOwn(roadFerries,line.id);
+    })
+     .map(c=>{
+       const line=c.serviceJourney.line;
+       return {aimed:c.aimedDepartureTime,expected:c.expectedDepartureTime||c.aimedDepartureTime,realtime:c.realtime,cancelled:c.cancellation,destination:c.destinationDisplay?.frontText||'',line:line.name,lineId:line.id,carFerry:true,samband:roadFerries[line.id]};
+     })
      .sort((a,b)=>new Date(a.expected)-new Date(b.expected));
+    if (!calls.length) return null;
     return {id:s.id,name:s.name,lat:s.latitude,lon:s.longitude,straightKm:Math.round(s.straightKm*10)/10,route:await route(lat,lon,s),departures:calls};
   }));
-  return reply(200,{stops:output,fetchedAt:new Date().toISOString(),routingProvider:'OSRM public demo — ikke produksjonsklar',timetableProvider:'Entur Journey Planner v3'});
+  return reply(200,{stops:output.filter(Boolean),fetchedAt:new Date().toISOString(),routingProvider:'OSRM public demo — ikke produksjonsklar',timetableProvider:'Entur Journey Planner v3'});
  }catch(e){console.error('Ferjekompis API:',e);return reply(502,{error:'Kunne ikke hente ferske opplysninger. '+e.message});}
 }
