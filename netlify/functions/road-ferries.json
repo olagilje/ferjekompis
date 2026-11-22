@@ -1,0 +1,614 @@
+{
+  "AKT:Line:296": {
+    "name": "Launes–Kvellandstrand",
+    "priority": 1,
+    "road": "Fv. 469"
+  },
+  "AKT:Line:297": {
+    "name": "Abelnes–Andabeløy",
+    "priority": 1,
+    "road": "Fv. 4128"
+  },
+  "ATB:Line:2_825": {
+    "name": "Dyrøy–Øyrekken",
+    "priority": 1,
+    "road": "Fv. 6470"
+  },
+  "ATB:Line:2_850": {
+    "name": "Dypfest–Tarva",
+    "priority": 1,
+    "road": "Fv. 6734"
+  },
+  "ATB:Line:2_855": {
+    "name": "Garten–Storfosna",
+    "priority": 1,
+    "road": "Fv. 6402"
+  },
+  "ATB:Line:2_860": {
+    "name": "Garten–Storfosna–Leksa–Værnes",
+    "priority": 1,
+    "road": "Fv. 6402"
+  },
+  "ATB:Line:2_870": {
+    "name": "Brekstad–Valset",
+    "priority": 1,
+    "road": "Fv. 710"
+  },
+  "ATB:Line:2_880": {
+    "name": "Flakk–Rørvik",
+    "priority": 1,
+    "road": "Fv. 715"
+  },
+  "ATB:Line:2_950": {
+    "name": "Levanger–Hokstad",
+    "priority": 1,
+    "road": "Fv. 774"
+  },
+  "ATB:Line:2_960": {
+    "name": "Skei–Gutvik",
+    "priority": 1,
+    "road": "Fv. 771"
+  },
+  "ATB:Line:2_963": {
+    "name": "Eidshaug–Gjerdinga",
+    "priority": 1,
+    "road": "Fv. 7126"
+  },
+  "ATB:Line:2_965": {
+    "name": "Hofles–Geisnes–Lund",
+    "priority": 1,
+    "road": "Fv. 769"
+  },
+  "ATB:Line:2_966": {
+    "name": "Borgan–Ramstadlandet",
+    "priority": 1,
+    "road": "Fv. 7094"
+  },
+  "ATB:Line:2_985": {
+    "name": "Ølhammeren–Seierstad",
+    "priority": 1,
+    "road": "Fv. 777"
+  },
+  "BFO:Line:364ee089-185b-4d84-93a2-2b5b9eed4edb": {
+    "name": "Moss–Horten",
+    "priority": 0,
+    "road": "Rv. 19"
+  },
+  "BRA:Line:4_6660": {
+    "name": "Svelvik–Verket",
+    "priority": 1,
+    "road": "Fv. 289"
+  },
+  "FIN:Line:2500": {
+    "name": "Øksfjord–Hasvik",
+    "priority": 1,
+    "road": "Fv. 882"
+  },
+  "FIN:Line:2510": {
+    "name": "Øksfjord–Tverrfjord",
+    "priority": 1,
+    "road": "Fv. 8018"
+  },
+  "FIN:Line:2520": {
+    "name": "Øksfjord–Bergsfjord–Sør–Tverrfjord",
+    "priority": 1,
+    "road": "Fv. 8012"
+  },
+  "FIN:Line:2550": {
+    "name": "Korsfjorden–Nyvoll",
+    "priority": 1,
+    "road": "Fv. 8830"
+  },
+  "FIN:Line:2560": {
+    "name": "Klokkarøya–Kjerringholmen",
+    "priority": 1,
+    "road": "Fv. 8026"
+  },
+  "INN:Line:900": {
+    "name": "Tangen–Horn",
+    "priority": 1,
+    "road": "Fv. 2336"
+  },
+  "KOL:Line:26_5958": {
+    "name": "Hjelmeland–Skipavik–Nesvik",
+    "priority": 0,
+    "road": "Rv. 13"
+  },
+  "KOL:Line:30_1130": {
+    "name": "Mortavika–Arsvågen",
+    "priority": 0,
+    "road": "E39"
+  },
+  "KOL:Line:8_5956": {
+    "name": "Mekjarvik–Kvitsøy",
+    "priority": 1,
+    "road": "Fv. 521"
+  },
+  "MOR:Line:1049": {
+    "name": "Festøya–Hundeidvika",
+    "priority": 1,
+    "road": "Fv. 5914"
+  },
+  "MOR:Line:1050": {
+    "name": "Molde–Sekken",
+    "priority": 1,
+    "road": "Fv. 6240"
+  },
+  "MOR:Line:1051": {
+    "name": "Småge–Orta–Finnøya–Sandøya–Ona",
+    "priority": 1,
+    "road": "Fv. 528"
+  },
+  "MOR:Line:1053": {
+    "name": "Stranda–Liabygda",
+    "priority": 1,
+    "road": "Fv. 650"
+  },
+  "MOR:Line:1054": {
+    "name": "Eidsdal–Linge",
+    "priority": 1,
+    "road": "Fv. 63"
+  },
+  "MOR:Line:1055": {
+    "name": "Sykkylven–Magerholm",
+    "priority": 1,
+    "road": "Fv. 60"
+  },
+  "MOR:Line:1056": {
+    "name": "Brattvåg–Dryna",
+    "priority": 1,
+    "road": "Fv. 659"
+  },
+  "MOR:Line:1058": {
+    "name": "Solholmen–Mordalsvågen",
+    "priority": 1,
+    "road": "Fv. 668"
+  },
+  "MOR:Line:1059": {
+    "name": "Aukra–Hollingsholmen",
+    "priority": 1,
+    "road": "Fv. 662"
+  },
+  "MOR:Line:1060": {
+    "name": "Åfarnes–Sølsnes",
+    "priority": 1,
+    "road": "Fv. 64"
+  },
+  "MOR:Line:1061": {
+    "name": "Kvanne–Rykkjem",
+    "priority": 1,
+    "road": "Fv. 670"
+  },
+  "MOR:Line:1062": {
+    "name": "Arasvika–Hennset",
+    "priority": 1,
+    "road": "Fv. 682"
+  },
+  "MOR:Line:1063": {
+    "name": "Seivika–Tømmervåg",
+    "priority": 1,
+    "road": "Fv. 680"
+  },
+  "MOR:Line:1064": {
+    "name": "Edøya–Sandvika",
+    "priority": 1,
+    "road": "Fv. 669"
+  },
+  "MOR:Line:1065": {
+    "name": "Volda–Lauvstad",
+    "priority": 1,
+    "road": "Fv. 652"
+  },
+  "MOR:Line:1066": {
+    "name": "Larsnes–Åram–Voksa–Kvamsøya",
+    "priority": 1,
+    "road": "Fv. 5852"
+  },
+  "MOR:Line:1067": {
+    "name": "Årvika–Koparneset",
+    "priority": 1,
+    "road": "Fv. 61"
+  },
+  "MOR:Line:1068": {
+    "name": "Hareid–Sulesund",
+    "priority": 1,
+    "road": "Fv. 61"
+  },
+  "MOR:Line:1069": {
+    "name": "Festøya–Solavågen",
+    "priority": 0,
+    "road": "E39"
+  },
+  "MOR:Line:1070": {
+    "name": "Molde–Vestnes",
+    "priority": 0,
+    "road": "E39"
+  },
+  "MOR:Line:1071": {
+    "name": "Volda–Folkestad",
+    "priority": 0,
+    "road": "Rv. 651"
+  },
+  "MOR:Line:1072": {
+    "name": "Halsa–Kanestraum",
+    "priority": 0,
+    "road": "E39"
+  },
+  "MOR:Line:1135": {
+    "name": "Sæbø–Leknes",
+    "priority": 1,
+    "road": "Fv. 655"
+  },
+  "MOR:Line:1136": {
+    "name": "Standal–Trandal–Sæbø–Skår–Valderøya–Store Kalvøy",
+    "priority": 1,
+    "road": "Fv. 655"
+  },
+  "NOR:Line:12_8115": {
+    "name": "Vennesund–Holm",
+    "priority": 1,
+    "road": "Fv. 17"
+  },
+  "NOR:Line:12_8142": {
+    "name": "Brønnøysund–Sauren",
+    "priority": 1,
+    "road": "Fv. 7235"
+  },
+  "NOR:Line:12_8152": {
+    "name": "Horn–Igerøy",
+    "priority": 1,
+    "road": "Fv. 839"
+  },
+  "NOR:Line:12_8153": {
+    "name": "Horn–Andalsvåg",
+    "priority": 1,
+    "road": "Fv. 17"
+  },
+  "NOR:Line:12_8158": {
+    "name": "Igerøy–Tjøtta",
+    "priority": 1,
+    "road": "Fv. 839"
+  },
+  "NOR:Line:12_8162": {
+    "name": "Tjøtta–Forvik",
+    "priority": 1,
+    "road": "Fv. 17"
+  },
+  "NOR:Line:12_8171": {
+    "name": "Søvik–Herøy",
+    "priority": 1,
+    "road": "Fv. 7270"
+  },
+  "NOR:Line:12_8181": {
+    "name": "Sandnessjøen–Dønna–Løkta",
+    "priority": 1,
+    "road": "Fv. 809"
+  },
+  "NOR:Line:12_8188": {
+    "name": "Solfjellsjøen–Vandve",
+    "priority": 1,
+    "road": "Fv. 7298"
+  },
+  "NOR:Line:12_8192": {
+    "name": "Stokkvågen–Træna",
+    "priority": 1,
+    "road": "Fv. 836"
+  },
+  "NOR:Line:12_8211": {
+    "name": "Mosjøen–Hundåla",
+    "priority": 1,
+    "road": "Fv. 7272"
+  },
+  "NOR:Line:12_8335": {
+    "name": "Nesna–Levang",
+    "priority": 1,
+    "road": "Fv. 17"
+  },
+  "NOR:Line:12_8336": {
+    "name": "Nesna–Nesnaøyene",
+    "priority": 1,
+    "road": "Fv. 7382"
+  },
+  "NOR:Line:12_8344": {
+    "name": "Stokkvågen–Onøy–Sleneset–Lovund",
+    "priority": 1,
+    "road": "Fv. 836"
+  },
+  "NOR:Line:12_8412": {
+    "name": "Rødøyene–Jektvik",
+    "priority": 1,
+    "road": "Fv. 7394"
+  },
+  "NOR:Line:12_8414": {
+    "name": "Jektvik–Kilboghamn",
+    "priority": 1,
+    "road": "Fv. 17"
+  },
+  "NOR:Line:12_8421": {
+    "name": "Forøy–Ågskardet",
+    "priority": 1,
+    "road": "Fv. 17"
+  },
+  "NOR:Line:12_8435": {
+    "name": "Ørnes–Vassdalsvik–Meløysund–Bolga",
+    "priority": 1,
+    "road": "Fv. 7420"
+  },
+  "NOR:Line:12_8444": {
+    "name": "Sund–Horsdal–Sørarnøy",
+    "priority": 1,
+    "road": "Fv. 838"
+  },
+  "NOR:Line:12_8538": {
+    "name": "Festvåg–Misten",
+    "priority": 1,
+    "road": "Fv. 834"
+  },
+  "NOR:Line:12_8581": {
+    "name": "Drag–Kjøpsvik",
+    "priority": 0,
+    "road": "Rv. 827"
+  },
+  "NOR:Line:12_8611": {
+    "name": "Bognes–Skarberget",
+    "priority": 0,
+    "road": "E6"
+  },
+  "NOR:Line:12_8703": {
+    "name": "Bognes–Lødingen",
+    "priority": 0,
+    "road": "Rv. 85"
+  },
+  "NOR:Line:12_8723": {
+    "name": "Digermulen–Finnvik",
+    "priority": 1,
+    "road": "Fv. 7630"
+  },
+  "NOR:Line:12_8732": {
+    "name": "Melbu–Fiskebøl",
+    "priority": 1,
+    "road": "Fv. 82"
+  },
+  "NOR:Line:12_8751": {
+    "name": "Svolvær–Skrova–Skutvik",
+    "priority": 1,
+    "road": "Fv. 81"
+  },
+  "NOR:Line:12_8782": {
+    "name": "Bodø–Værøy–Røst–Moskenes",
+    "priority": 0,
+    "road": "Rv. 80"
+  },
+  "OST:Line:1_801": {
+    "name": "Hvalerferja",
+    "priority": 1
+  },
+  "SKY:Line:1018": {
+    "name": "Halhjem–Sandvikvåg",
+    "priority": 0,
+    "road": "E39"
+  },
+  "SKY:Line:1019": {
+    "name": "Masfjordnes–Duesund",
+    "priority": 1,
+    "road": "Fv. 570"
+  },
+  "SKY:Line:1020": {
+    "name": "Hatvik–Venjaneset",
+    "priority": 1,
+    "road": "Fv. 552"
+  },
+  "SKY:Line:1021": {
+    "name": "Halhjem–Våge",
+    "priority": 1,
+    "road": "Fv. 549"
+  },
+  "SKY:Line:1022": {
+    "name": "Krokeide–Hufthamar",
+    "priority": 1,
+    "road": "Fv. 546"
+  },
+  "SKY:Line:1023": {
+    "name": "Husavik–Sandvikvåg",
+    "priority": 1,
+    "road": "Fv. 546"
+  },
+  "SKY:Line:1024": {
+    "name": "Kvanndal–Utne",
+    "priority": 1,
+    "road": "Fv. 550"
+  },
+  "SKY:Line:1025": {
+    "name": "Kinsarvik–Utne",
+    "priority": 1,
+    "road": "Fv. 550"
+  },
+  "SKY:Line:1026": {
+    "name": "Jondal–Tørvikbygd",
+    "priority": 1,
+    "road": "Fv. 49"
+  },
+  "SKY:Line:1027": {
+    "name": "Gjermundshamn–Varaldsøy–Årsnes",
+    "priority": 1,
+    "road": "Fv. 5114"
+  },
+  "SKY:Line:1028": {
+    "name": "Fedje–Sævrøy",
+    "priority": 1,
+    "road": "Fv. 568"
+  },
+  "SKY:Line:1029": {
+    "name": "Leirvåg–Sløvåg",
+    "priority": 1,
+    "road": "Fv. 57"
+  },
+  "SKY:Line:1030": {
+    "name": "Langevåg–Buavåg",
+    "priority": 1,
+    "road": "Fv. 541"
+  },
+  "SKY:Line:1031": {
+    "name": "Skånevik–Matre–Utåker",
+    "priority": 1,
+    "road": "Fv. 548"
+  },
+  "SKY:Line:1032": {
+    "name": "Skjersholmane–Ranavik",
+    "priority": 1,
+    "road": "Fv. 500"
+  },
+  "SKY:Line:1033": {
+    "name": "Jektevik–Nordhuglo–Hodnanes",
+    "priority": 1,
+    "road": "Fv. 549"
+  },
+  "SKY:Line:1034": {
+    "name": "Fjelberg–Sydnes–Utbjoa",
+    "priority": 1,
+    "road": "Fv. 543"
+  },
+  "SKY:Line:1035": {
+    "name": "Klokkarvik–Lerøy–Bjelkarøy–Hjellestad",
+    "priority": 1,
+    "road": "Fv. 5218"
+  },
+  "SKY:Line:1036": {
+    "name": "Breistein–Valestrand",
+    "priority": 1,
+    "road": "Fv. 567"
+  },
+  "SKY:Line:1037": {
+    "name": "Barmen–Barmsund",
+    "priority": 1
+  },
+  "SKY:Line:1038": {
+    "name": "Stårheim–Isane",
+    "priority": 1,
+    "road": "Fv. 614"
+  },
+  "SKY:Line:1039": {
+    "name": "Måløy–Husevågøy–Oldeide",
+    "priority": 1,
+    "road": "Fv. 616"
+  },
+  "SKY:Line:1041": {
+    "name": "Daløy–Haldorsneset",
+    "priority": 1,
+    "road": "Fv. 5591"
+  },
+  "SKY:Line:1042": {
+    "name": "Rysjedalsvika–Rutledal–Krakhella",
+    "priority": 1,
+    "road": "Fv. 57"
+  },
+  "SKY:Line:1043": {
+    "name": "Hisarøy–Mjånes",
+    "priority": 1,
+    "road": "Fv. 5583"
+  },
+  "SKY:Line:1044": {
+    "name": "Anda–Lote",
+    "priority": 0,
+    "road": "E39"
+  },
+  "SKY:Line:1045": {
+    "name": "Lavik–Oppedal",
+    "priority": 0,
+    "road": "E39"
+  },
+  "SKY:Line:1046": {
+    "name": "Vangsnes–Hella–Dragsvik",
+    "priority": 0,
+    "road": "Rv. 13"
+  },
+  "SKY:Line:1047": {
+    "name": "Mannheller–Fodnes",
+    "priority": 0,
+    "road": "Rv. 5"
+  },
+  "SKY:Line:1140": {
+    "name": "Askvoll–Fure–Gjervik–Askvoll",
+    "priority": 1,
+    "road": "Fv. 608"
+  },
+  "SKY:Line:1141": {
+    "name": "Askvoll–Fure–Værlandet",
+    "priority": 1,
+    "road": "Fv. 5655"
+  },
+  "TEL:Line:8281": {
+    "name": "Brevik–Sandøya",
+    "priority": 1,
+    "road": "Fv. 3348"
+  },
+  "TEL:Line:8712": {
+    "name": "Kragerø–Tåtøy–Stabbestad",
+    "priority": 1
+  },
+  "TRO:Line:1_170": {
+    "name": "Revsnes–Flesnes",
+    "priority": 1,
+    "road": "Fv. 850"
+  },
+  "TRO:Line:1_175": {
+    "name": "Sørrollnes–Stangnes",
+    "priority": 1,
+    "road": "Fv. 848"
+  },
+  "TRO:Line:1_177": {
+    "name": "Stornes–Bjørnerå",
+    "priority": 1,
+    "road": "Fv. 8670"
+  },
+  "TRO:Line:1_181": {
+    "name": "Botnhamn–Brensholmen",
+    "priority": 1,
+    "road": "Fv. 862"
+  },
+  "TRO:Line:1_182": {
+    "name": "Bellvik–Vengsøy",
+    "priority": 1,
+    "road": "Fv. 7770"
+  },
+  "TRO:Line:1_185": {
+    "name": "Hansnes–Karlsøy–Vannøy",
+    "priority": 1,
+    "road": "Fv. 863"
+  },
+  "TRO:Line:1_186": {
+    "name": "Hansnes–Reinøy",
+    "priority": 1,
+    "road": "Fv. 7908"
+  },
+  "TRO:Line:1_188": {
+    "name": "Mikkelvik–Bromnes",
+    "priority": 1,
+    "road": "Fv. 7910"
+  },
+  "TRO:Line:1_190": {
+    "name": "Lyngseidet–Olderdalen",
+    "priority": 1,
+    "road": "Fv. 91"
+  },
+  "TRO:Line:1_191": {
+    "name": "Breivikeidet–Svensby",
+    "priority": 1,
+    "road": "Fv. 91"
+  },
+  "TRO:Line:1_195": {
+    "name": "Storstein–Nikkeby–Lauksundskaret",
+    "priority": 1,
+    "road": "Fv. 7944"
+  },
+  "TRO:Line:1_198": {
+    "name": "Rotsund–Havnnes–Uløybukt",
+    "priority": 1,
+    "road": "Fv. 7938"
+  },
+  "VLA:Line:d8f5c9ed-4a8d-44f2-bed2-d4aed660c324": {
+    "name": "Geiranger–Hellesylt",
+    "priority": 1,
+    "road": "Fv. 60"
+  }
+}

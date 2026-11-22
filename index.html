@@ -116,23 +116,34 @@
    const future=relevant.filter(d=>!missed.includes(d)&&d.when>=now&&(drive==null||d.when>=now+(drive+margin)*60000));
    return {recommended,items:[...missed,...future].slice(0,7),drive,margin,now};
   }
+  function groupConnections(stops){
+   const connections=new Map();
+   for(const stop of stops){
+    for(const departure of stop.departures){
+     if(!departure.samband)continue;
+     const key=JSON.stringify([stop.id,departure.lineId,departure.destination]);
+     if(!connections.has(key))connections.set(key,{...stop,samband:departure.samband,destination:departure.destination,departures:[]});
+     connections.get(key).departures.push(departure);
+    }
+   }
+   return [...connections.values()].sort((a,b)=>a.samband.priority-b.samband.priority||a.straightKm-b.straightKm||a.samband.name.localeCompare(b.samband.name,'nb'));
+  }
   function render(){if(!data)return;if(mode==='bus'){$('results').innerHTML='<div class="empty">Buss er ikke koblet til Entur ennå. Velg Bil for å se ferjeavganger og kjøreberegning.</div>';return;}
-   const stops=data.stops.map(s=>({...s,computed:calculate(s)}));
-   stops.sort((a,b)=>{const ta=a.computed.recommended?.when??Infinity,tb=b.computed.recommended?.when??Infinity;return ta-tb||a.straightKm-b.straightKm;});
-   const chosen=stops.filter(s=>!manualChoice||s.name.toLowerCase().includes(manualChoice.toLowerCase()));
-   const list=chosen.length?chosen:stops;
-   $('results').innerHTML=`<div class="sub">Entur-data hentet ${fmt(data.fetchedAt)} · ${list.length} ferjekaier · ${mode==='car'?'Bil':'Buss (ikke aktivert)'}</div>`+(!list.length?'<div class="empty">Ingen ferjekaier funnet. Søk gjerne manuelt eller prøv et annet sted.</div>':'')+list.map(s=>{
-    const c=s.computed;const best=c.recommended;const latest=best&&c.drive!=null?new Date(best.when-(c.drive+c.margin)*60000):null;
+   const list=groupConnections(data.stops);
+   $('results').innerHTML=`<div class="sub">Entur-data hentet ${fmt(data.fetchedAt)} · ${list.length} ferjeruter</div>`+(!list.length?'<div class="empty">Ingen avganger funnet for europaveg-, riksveg- eller fylkesvegferjer i søkeområdet.</div>':'')+list.map(s=>{
+    const c=calculate(s);const best=c.recommended;const latest=best&&c.drive!=null?new Date(best.when-(c.drive+c.margin)*60000):null;
     const noRoute=c.drive==null;
-    return `<div style="margin-top:16px"><div class="sectionhead" style="margin-bottom:2px"><h2>${esc(s.name)}</h2><span class="sub">${s.straightKm} km luftlinje</span></div>
+    const next=s.departures.find(d=>!d.cancelled&&Date.parse(d.expected)>=c.now);
+    return `<div style="margin-top:16px"><div class="sectionhead" style="margin-bottom:2px"><h2>${esc([s.samband.road,s.samband.name].filter(Boolean).join(' '))}</h2><span class="sub">${s.straightKm} km luftlinje</span></div>
+      <div class="sub">Fra ${esc(s.name)}${s.destination?' til '+esc(s.destination):''} · ${next?'Neste avgang kl. '+fmt(next.expected):'Ingen kommende avgang funnet'}</div>
       <div class="sub">${noRoute?'Kjøretid ikke tilgjengelig — ingen avgang kan anbefales':`Estimert kjøring ${c.drive} min · ${s.route.distanceKm} km vei · sikkerhetsmargin ${c.margin} min`}</div>
       ${latest?`<div class="notice" style="background:#e9f5ee;color:#147d55;border-color:#b8ddc7"><b>Reis senest kl. ${fmt(latest)}</b> for ferja kl. ${fmt(best.expected)}. ${Date.now()>latest.getTime()?'Avreisefristen er passert.':''}</div>`:''}
       ${!c.items.length?'<div class="empty">Ingen avganger funnet i tidsvinduet (Entur).</div>':''}
-      ${c.items.map(d=>{const isBest=best===d;const isMiss=d.cancelled||d.when<c.now||(mode==='car'&&c.drive!=null&&d.when<c.now+(c.drive+c.margin)*60000);return `<div class="ferry ${isBest?'recommended':isMiss?'missed':''}">
+      ${c.items.length?'<details><summary>Vis avganger</summary>':''}${c.items.map(d=>{const isBest=best===d;const isMiss=d.cancelled||d.when<c.now||(mode==='car'&&c.drive!=null&&d.when<c.now+(c.drive+c.margin)*60000);return `<div class="ferry ${isBest?'recommended':isMiss?'missed':''}">
         <div class="ferrytop"><div><div class="label">${esc(d.destination||d.line||'Ferjeavgang')}${d.realtime?' · Sanntid':' · Rutetid'}${d.carFerry?' · Bilferje':' · Biltransport ikke bekreftet'}</div><div class="time">${fmt(d.expected)}</div></div><span class="state">${d.cancelled?'Innstilt':isBest?'ANBEFALT':isMiss?'Rekker ikke':noRoute||!d.carFerry?'Uavklart':'Aktuell'}</span></div>
-        <div class="details"><span>${esc(d.line)}</span><span>${d.when>=c.now?'Om '+Math.max(0,Math.round((d.when-c.now)/60000))+' min':'Avgang passert'}</span></div></div>`;}).join('')}</div>`;
+        <div class="details"><span>${esc(d.line)}</span><span>${d.when>=c.now?'Om '+Math.max(0,Math.round((d.when-c.now)/60000))+' min':'Avgang passert'}</span></div></div>`;}).join('')}${c.items.length?'</details>':''}</div>`;
    }).join('');
-   $('mapstatus').textContent='Ferjekaier fra Entur';showMarkers(list);
+   $('mapstatus').textContent='Ferjekaier fra Entur';showMarkers(data.stops);
   }
   async function find(){if(!position){toast('Hent posisjonen din først.');return;}if(mode==='bus'){toast('Bussruter er ikke implementert ennå. Velg Bil for beregning.');return;}
    $('find').disabled=true;$('find').textContent='Henter rutetider …';$('results').innerHTML='<div class="empty">Henter faktiske ferjekaier og avganger fra Entur …</div>';
