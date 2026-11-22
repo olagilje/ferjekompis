@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#102a27">
+  <meta name="description" content="Ferjekompis – finn ferja du rekker, og når du må reise.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <title>Ferjekompis</title>
+  <style>
+    :root{--ink:#102a27;--muted:#6b7d79;--bg:#f3f6f3;--card:#fff;--line:#e3eae5;--green:#147d55;--pale:#e9f5ee;--red:#bd3d3d;--redpale:#fbefef;--gold:#d6a64c}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    .shell{max-width:520px;margin:0 auto;min-height:100vh;padding:env(safe-area-inset-top) 16px calc(28px + env(safe-area-inset-bottom))}
+    header{display:flex;align-items:center;justify-content:space-between;padding:22px 2px 18px}
+    .brand{display:flex;gap:10px;align-items:center}.logo{width:42px;height:42px;border-radius:14px;background:var(--ink);display:grid;place-items:center;color:#fff;font-size:22px}
+    h1{font-size:21px;line-height:1;margin:0;letter-spacing:-.5px}.tag{font-size:11px;color:var(--muted);margin-top:4px}
+    .pill{border:1px solid var(--line);background:#fff;border-radius:30px;padding:7px 11px;font-size:12px;color:var(--muted)}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;margin-bottom:13px;box-shadow:0 4px 16px rgba(16,42,39,.035)}
+    .locrow{display:flex;justify-content:space-between;align-items:center;gap:10px}.eyebrow{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:700}
+    .location{font-size:16px;font-weight:650;margin-top:4px}.sub{font-size:12px;color:var(--muted);margin-top:3px}
+    button,select,input{font:inherit} button{border:0;cursor:pointer}
+    .smallbtn{background:var(--pale);color:var(--green);font-weight:700;border-radius:12px;padding:10px 12px;font-size:13px;white-space:nowrap}
+    .primary{width:100%;background:var(--ink);color:#fff;border-radius:14px;padding:15px;font-weight:700;margin-top:12px}
+    .primary:disabled{opacity:.45;cursor:default}
+    .transport{display:flex;background:#edf1ed;border-radius:13px;padding:4px;gap:4px;margin-top:10px}
+    .transport button{flex:1;padding:10px;border-radius:10px;background:transparent;color:var(--muted);font-weight:650}
+    .transport button.active{background:#fff;color:var(--ink);box-shadow:0 1px 4px #102a2714}
+    .mapwrap{height:190px;border-radius:15px;overflow:hidden;background:#e2ebe5;position:relative}
+    #map{height:100%;width:100%}.mapnote{position:absolute;z-index:500;bottom:9px;left:9px;background:#fffE;padding:6px 9px;border-radius:9px;font-size:11px;color:var(--muted)}
+    .sectionhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+    .sectionhead h2{font-size:16px;margin:0}.linkbtn{background:none;color:var(--green);font-size:13px;font-weight:700;padding:5px}
+    .notice{background:#fff8e9;border:1px solid #f2e4c4;border-radius:13px;padding:11px 12px;font-size:12px;color:#755b28;margin-top:12px}
+    .status{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}.dot{width:8px;height:8px;border-radius:50%;background:var(--gold)}
+    .empty{padding:20px 8px;text-align:center;color:var(--muted);font-size:13px}
+    .ferry{border:1px solid var(--line);border-radius:15px;padding:13px;margin-top:9px}
+    .ferry.recommended{background:var(--pale);border-color:#b8ddc7}
+    .ferry.missed{opacity:.48;background:#f6f7f6}
+    .ferrytop{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .time{font-size:25px;font-weight:800;letter-spacing:-1px}.ferry.missed .time{text-decoration:line-through;text-decoration-color:var(--red);text-decoration-thickness:2px}
+    .label{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+    .state{font-size:11px;font-weight:750;border-radius:20px;padding:5px 8px;background:#edf1ed;color:var(--muted)}
+    .recommended .state{background:#d4eddd;color:var(--green)}.missed .state{background:#f6e1e1;color:var(--red)}
+    .details{display:flex;gap:16px;margin-top:8px;color:var(--muted);font-size:12px}
+    .details b{color:var(--ink);font-weight:650}
+    .settings{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
+    select{background:#f5f7f5;border:1px solid var(--line);border-radius:10px;padding:9px;color:var(--ink)}
+    .manual{display:flex;gap:8px;margin-top:10px}.manual input{min-width:0;flex:1;border:1px solid var(--line);border-radius:11px;padding:11px;background:#fff}
+    .manual button{background:var(--pale);color:var(--green);font-weight:700;padding:0 13px;border-radius:11px}
+    footer{text-align:center;color:#8a9994;font-size:11px;padding:9px 0 18px}
+    .toast{position:fixed;left:16px;right:16px;bottom:20px;max-width:488px;margin:auto;background:var(--ink);color:#fff;padding:13px 15px;border-radius:13px;font-size:13px;z-index:1000;display:none;box-shadow:0 8px 30px #0002}
+    @media(min-width:600px){.shell{padding-top:22px}}
+  </style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div class="brand"><div class="logo">⛴</div><div><h1>Ferjekompis</h1><div class="tag">Reis når du rekker ferja</div></div></div>
+    <div class="pill">Første versjon</div>
+  </header>
+
+  <section class="card">
+    <div class="locrow">
+      <div><div class="eyebrow">Utgangspunkt</div><div class="location" id="place">Posisjon ikke hentet</div><div class="sub" id="coords">Bruk posisjonen din for å finne ferjer i nærheten</div></div>
+      <button class="smallbtn" id="locate">⌖ Min posisjon</button>
+    </div>
+    <div class="transport" role="group" aria-label="Transportmiddel">
+      <button class="active" data-mode="car">🚗 Bil</button>
+      <button data-mode="bus">🚌 Buss</button>
+    </div>
+    <div class="settings">
+      <span class="sub">Sikkerhetsmargin før avgang</span>
+      <select id="buffer"><option value="5">5 minutter</option><option value="10" selected>10 minutter</option><option value="15">15 minutter</option><option value="20">20 minutter</option></select>
+    </div>
+    <button class="primary" id="find">Finn ferjer i nærheten</button>
+  </section>
+
+  <section class="card">
+    <div class="sectionhead"><h2>Kart</h2><span class="status"><span class="dot"></span><span id="mapstatus">Venter på posisjon</span></span></div>
+    <div class="mapwrap"><div id="map"></div><div class="mapnote">Kartgrunnlag © OpenStreetMap</div></div>
+  </section>
+
+  <section class="card">
+    <div class="sectionhead"><h2>Ferjer du kan rekke</h2><button class="linkbtn" id="manualtoggle">Velg annet samband</button></div>
+    <div id="results"><div class="empty">Trykk «Min posisjon» for å starte. Ferjekompis finner deretter aktuelle samband.</div></div>
+    <div id="manual" style="display:none">
+      <div class="sub" style="margin-top:12px">Søk etter ferjekai eller samband for å overstyre automatisk forslag.</div>
+      <div class="manual"><input id="manualname" placeholder="F.eks. Halhjem, Sandvikvåg"><button id="manualadd">Velg</button></div>
+    </div>
+    <div class="notice"><b>Merk:</b> Dette er en tidlig prototype. Avgangene i denne versjonen er eksempeldata, ikke live-rutetider. Ikke bruk dem til å planlegge en faktisk ferjereise.</div>
+  </section>
+  <footer>Ferjekompis · Bygges steg for steg i Norge 🇳🇴</footer>
+</div>
+<div class="toast" id="toast"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  let position = null, mode = 'car', map = null, marker = null, accuracy = null, manualChoice = '';
+  const toast = msg => { const el=$('toast'); el.textContent=msg; el.style.display='block'; clearTimeout(window.__toastTimer); window.__toastTimer=setTimeout(()=>el.style.display='none',3600); };
+  function initMap(){
+    if(!window.L){ $('mapstatus').textContent='Kart kunne ikke lastes'; return; }
+    map=L.map('map',{zoomControl:false}).setView([60.39,5.32],11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+    L.control.zoom({position:'bottomright'}).addTo(map);
+  }
+  function setLocation(lat,lon){
+    position={lat,lon}; $('place').textContent='Din posisjon'; $('coords').textContent=`${lat.toFixed(5)}, ${lon.toFixed(5)}`; $('mapstatus').textContent='GPS-posisjon funnet';
+    if(map){ if(marker) map.removeLayer(marker); marker=L.marker([lat,lon]).addTo(map).bindPopup('Du er her'); map.setView([lat,lon],13); }
+    $('find').disabled=false;
+  }
+  function locate(){
+    if(!navigator.geolocation){toast('Denne nettleseren støtter ikke GPS.');return;}
+    $('locate').textContent='Henter …';
+    navigator.geolocation.getCurrentPosition(p=>{setLocation(p.coords.latitude,p.coords.longitude);$('locate').textContent='⌖ Oppdater posisjon';toast('Posisjonen er hentet.');},e=>{$('locate').textContent='⌖ Min posisjon';toast(e.code===1?'Du må tillate posisjonstilgang i Safari.':'Klarte ikke hente posisjonen. Prøv igjen.');},{enableHighAccuracy:true,timeout:15000,maximumAge:30000});
+  }
+  function renderDemo(){
+    if(!position){toast('Hent posisjonen din først.');return;}
+    const b=Number($('buffer').value);
+    const now=new Date();
+    const base=new Date(now.getTime()+8*60000);
+    const times=[-12,18,48,78].map(m=>new Date(base.getTime()+m*60000));
+    const fmt=d=>d.toLocaleTimeString('no-NO',{hour:'2-digit',minute:'2-digit'});
+    const items=times.map((t,i)=>({time:fmt(t),missed:i===0,first:i===1,minutes:Math.round((t-now)/60000)}));
+    $('results').innerHTML=`<div class="sub">Eksempelvisning · ${mode==='car'?'Bil':'Buss'} · ${manualChoice?escapeHtml(manualChoice):'Samband må kobles til live-data'}</div>`+items.map((it,i)=>`
+      <div class="ferry ${it.missed?'missed':it.first?'recommended':''}">
+        <div class="ferrytop"><div><div class="label">${it.missed?'Tidligere avgang':it.first?'Første du rekker':'Senere avgang'}</div><div class="time">${it.time}</div></div><span class="state">${it.missed?'Rekker ikke':it.first?'Anbefalt':'Aktuell'}</span></div>
+        <div class="details"><span>Avgang om <b>${it.minutes>0?it.minutes:0} min</b></span><span>${it.first?`Reis senest ${fmt(new Date(tMinus(t,b+7)))}`:'Avgangstid'}</span></div>
+      </div>`).join('');
+    toast('Prototypevisning åpnet – rutetidene er foreløpig eksempeldata.');
+  }
+  function tMinus(date,mins){return new Date(date.getTime()-mins*60000)}
+  function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  $('locate').addEventListener('click',locate);
+  $('find').addEventListener('click',renderDemo);
+  document.querySelectorAll('[data-mode]').forEach(btn=>btn.addEventListener('click',()=>{mode=btn.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===btn));}));
+  $('manualtoggle').addEventListener('click',()=>{$('manual').style.display=$('manual').style.display==='none'?'block':'none';});
+  $('manualadd').addEventListener('click',()=>{const val=$('manualname').value.trim();if(!val){toast('Skriv inn et samband eller en ferjekai.');return;}manualChoice=val;$('manual').style.display='none';if(position)renderDemo();else toast('Valget er lagt inn. Hent posisjonen for å fortsette.');});
+  $('find').disabled=true;
+  initMap();
+  if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+})();
+</script>
+</body>
+</html>
