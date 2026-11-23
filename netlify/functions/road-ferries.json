@@ -520,7 +520,8 @@
   "SKY:Line:1046": {
     "name": "Vangsnes–Hella–Dragsvik",
     "priority": 0,
-    "road": "Rv. 13"
+    "road": "Rv. 13",
+    "terminals": ["Vangsnes", "Hella", "Dragsvik"]
   },
   "SKY:Line:1047": {
     "name": "Mannheller–Fodnes",

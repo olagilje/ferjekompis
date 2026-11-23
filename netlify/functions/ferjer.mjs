@@ -4,6 +4,7 @@ const CLIENT = process.env.ENTUR_CLIENT_NAME || 'ferjekompis-web';
 const HEADERS = { 'content-type': 'application/json', 'ET-Client-Name': CLIENT };
 const Q_STOPS = `query($a:Float!,$b:Float!,$c:Float!,$d:Float!){stopPlacesByBbox(minimumLatitude:$a,minimumLongitude:$b,maximumLatitude:$c,maximumLongitude:$d,filterByInUse:true){id name latitude longitude transportMode transportSubmode}}`;
 const Q_CALLS = `query($ids:[String],$start:DateTime){stopPlaces(ids:$ids){id name latitude longitude estimatedCalls(startTime:$start,timeRange:43200,numberOfDepartures:45,includeCancelledTrips:true){aimedDepartureTime expectedDepartureTime realtime cancellation forBoarding destinationDisplay{frontText} serviceJourney{line{id name publicCode transportMode transportSubmode}}}}}`;
+const Q_TRIANGLE_CALLS = `query($ids:[String],$start:DateTime){stopPlaces(ids:$ids){id name latitude longitude estimatedCalls(startTime:$start,timeRange:43200,numberOfDepartures:45,includeCancelledTrips:true){aimedDepartureTime expectedDepartureTime realtime cancellation forBoarding destinationDisplay{frontText} serviceJourney{line{id name publicCode transportMode transportSubmode} quays{stopPlace{id name parent{id name}}}}}}}`;
 const Q_LINE_STOPS = `query($id:ID!){line(id:$id){quays{stopPlace{id name latitude longitude parent{id name latitude longitude}}}}}`;
 function reply(code, data) { return {statusCode:code, headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'},body:JSON.stringify(data)}; }
 async function graphql(query, variables) {
@@ -17,13 +18,13 @@ function isWater(stop){return stop.transportMode?.includes('water') || stop.tran
 function normalizePlace(name){
  return name.normalize('NFC').toLocaleLowerCase('nb-NO').replace(/\b(?:ferjekai|fergekai|kai)\b/g,'').trim();
 }
-function departures(calls=[]){
+function departures(calls=[],destinationOverride=''){
  return calls.filter(call=>{
   const line=call.serviceJourney?.line;
   return call.forBoarding&&line?.transportMode==='water'&&Object.hasOwn(roadFerries,line.id);
  }).map(call=>{
   const line=call.serviceJourney.line;
-  return {aimed:call.aimedDepartureTime,expected:call.expectedDepartureTime||call.aimedDepartureTime,realtime:call.realtime,cancelled:call.cancellation,destination:call.destinationDisplay?.frontText||'',line:line.name,lineId:line.id,carFerry:true,samband:roadFerries[line.id]};
+  return {aimed:call.aimedDepartureTime,expected:call.expectedDepartureTime||call.aimedDepartureTime,realtime:call.realtime,cancelled:call.cancellation,destination:destinationOverride||call.destinationDisplay?.frontText||'',line:line.name,lineId:line.id,carFerry:true,samband:roadFerries[line.id]};
  }).sort((a,b)=>Date.parse(a.expected)-Date.parse(b.expected));
 }
 async function nearbyWaterStops([lon,lat]){
@@ -108,6 +109,24 @@ async function selectedPier(id,origin){
   straightKm:origin?Math.round(haversine(origin.lat,origin.lon,stop.latitude,stop.longitude)*10)/10:null,
   route:origin?await route(origin.lat,origin.lon,stop):null,departures:departures(stop.estimatedCalls)};
 }
+async function triangleDestination(lat,lon,lineId,fromStopId,to){
+ const start=new Date(Date.now()-75*60000).toISOString();
+ const {stopPlaces}=await graphql(Q_TRIANGLE_CALLS,{ids:[fromStopId],start});
+ const stop=stopPlaces?.[0];
+ if(!stop)return {stops:[],message:'Fant ikkje avreisekaia i Entur.'};
+ const target=normalizePlace(to);
+ const calls=(stop.estimatedCalls||[]).filter(call=>{
+  const service=call.serviceJourney;
+  if(!call.forBoarding||service?.line?.id!==lineId)return false;
+  const path=(service.quays||[]).map(quay=>quay.stopPlace?.parent||quay.stopPlace).filter(Boolean);
+  const fromIndex=path.findIndex(place=>place.id===fromStopId||normalizePlace(place.name)===normalizePlace(stop.name));
+  return fromIndex>=0&&path.slice(fromIndex+1).some(place=>normalizePlace(place.name)===target);
+ });
+ const origin=Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=57&&lat<=72&&lon>=4&&lon<=32?{lat,lon}:null;
+ return {stops:[{id:stop.id,name:stop.name,lat:stop.latitude,lon:stop.longitude,
+  straightKm:origin?Math.round(haversine(origin.lat,origin.lon,stop.latitude,stop.longitude)*10)/10:null,
+  route:origin?await route(origin.lat,origin.lon,stop):null,departures:departures(calls,to)}],fetchedAt:new Date().toISOString()};
+}
 async function otherDirection(lat,lon,lineId,fromStopId,destination){
  const {line}=await graphql(Q_LINE_STOPS,{id:lineId});
  const candidates=new Map();
@@ -150,6 +169,14 @@ export async function handler(event){
    const validOrigin=Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=57&&lat<=72&&lon>=4&&lon<=32;
    const stop=await selectedPier(p.stopId,validOrigin?{lat,lon}:null);
    return reply(200,{stops:stop?[stop]:[],fetchedAt:new Date().toISOString()});
+  }
+  if(p.triangleTo){
+   const terminals=roadFerries[p.lineId]?.terminals;
+   const destination=terminals?.find(name=>normalizePlace(name)===normalizePlace(p.triangleTo));
+   if(!terminals||!/^NSR:StopPlace:\d+$/.test(p.fromStopId||'')||!destination)return reply(400,{error:'Ugyldig kai eller reisemål for trekantsambandet.'});
+   const originLat=Number.isFinite(lat)&&lat>=57&&lat<=72&&lon>=4&&lon<=32?lat:NaN;
+   const originLon=Number.isFinite(lat)&&lat>=57&&lat<=72&&lon>=4&&lon<=32?lon:NaN;
+   return reply(200,await triangleDestination(originLat,originLon,p.lineId,p.fromStopId,destination));
   }
   const validOrigin=Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=57&&lat<=72&&lon>=4&&lon<=32;
   if(p.lineId){

@@ -40,6 +40,7 @@
     .connection-card{margin-top:16px}
     .connection-card + .connection-card{border-top:1px solid var(--line);padding-top:16px}
     .farther-connections{margin-top:12px}.farther-connections>summary{cursor:pointer;color:var(--green);font-size:13px;font-weight:700;padding:10px 4px}
+    .triangle-targets{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}.triangle-targets button{border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--green);padding:7px 12px;font-size:12px;font-weight:700}.triangle-targets button.active{background:var(--green);border-color:var(--green);color:#fff}.triangle-targets button:disabled{opacity:.6}
     .results-actions{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
     .refreshbtn{background:var(--pale);color:var(--green);border-radius:999px;padding:6px 10px;min-height:36px;font-size:12px;font-weight:700}
     .refreshbtn:disabled{opacity:.6;cursor:default}
@@ -118,9 +119,11 @@
   let pierSearchRequest;
   let pickingLocation=false, locationRequest=0;
   const chosenDirections=new Map();
+  const triangleChoices=new Map(),triangleResults=new Map();
   let departureRequest;
   const toast=msg=>{const e=$('toast');e.textContent=msg;e.style.display='block';clearTimeout(window.__toastTimer);window.__toastTimer=setTimeout(()=>e.style.display='none',4300);};
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const normalizeTerminal=s=>String(s??'').normalize('NFC').toLocaleLowerCase('nb-NO').replace(/\b(?:ferjekai|fergekai|kai)\b/g,'').trim();
   const fmt=iso=>new Date(iso).toLocaleTimeString('no-NO',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Oslo'});
   function initMap(){
    if(!window.L){$('mapstatus').textContent='Kart kunne ikke lastes';return;}
@@ -144,6 +147,7 @@
    selectedPierId='';
    $('allnearby').hidden=true;
    chosenDirections.clear();
+   triangleChoices.clear();triangleResults.clear();
    setPickingLocation(false);
    const label=fromMap?'Valgt på kartet':'Din posisjon';
    $('place').textContent=label;
@@ -209,7 +213,7 @@
    const cards=[...byLine].map(([lineId,directions])=>{
     directions.sort((a,b)=>a.straightKm-b.straightKm||a.name.localeCompare(b.name,'nb')||a.destination.localeCompare(b.destination,'nb'));
     const selected=Math.max(0,directions.findIndex(d=>d.key===chosenDirections.get(lineId)));
-    return {lineId,nearest:directions[0],direction:directions[selected],next:directions.length>1?directions[(selected+1)%directions.length]:null};
+    return {lineId,nearest:directions[0],direction:directions[selected],next:directions.length>1?directions[(selected+1)%directions.length]:null,directions};
    });
    return cards.sort((a,b)=>a.nearest.samband.priority-b.nearest.samband.priority||a.nearest.straightKm-b.nearest.straightKm||a.nearest.samband.name.localeCompare(b.nearest.samband.name,'nb'));
   }
@@ -219,15 +223,30 @@
    const driveMinutes=connection=>calculate(connection.nearest).drive;
    const nearby=automaticView?list.filter(connection=>driveMinutes(connection)==null||driveMinutes(connection)<=90):list;
    const farther=automaticView?list.filter(connection=>driveMinutes(connection)>90):[];
-   const renderCards=connections=>connections.map(({lineId,direction:s,next:nextDirection})=>{
+   const renderCards=connections=>connections.map(connection=>{
+    const {lineId,next:nextDirection}=connection;
+    let s=connection.direction,destination='',triangle=Array.isArray(connection.nearest.samband.terminals);
+    if(triangle){
+     const origin=connection.nearest;
+     const originDirections=connection.directions.filter(d=>d.id===origin.id);
+     const nextTime=d=>d.departures.map(call=>Date.parse(call.expected)).filter(time=>time>=Date.now()).sort((a,b)=>a-b)[0]??Infinity;
+     const defaultDirection=[...originDirections].sort((a,b)=>nextTime(a)-nextTime(b))[0]||origin;
+     destination=triangleChoices.get(lineId)||defaultDirection.destination;
+     const cached=triangleResults.get(JSON.stringify([lineId,origin.id,destination]));
+     const initialCalls=normalizeTerminal(destination)===normalizeTerminal(defaultDirection.destination)?defaultDirection.departures:[];
+     s={...origin,...cached,samband:origin.samband,destination,departures:cached?.departures||initialCalls};
+    }
+    const targets=triangle?s.samband.terminals.filter(name=>normalizeTerminal(name)!==normalizeTerminal(s.name)):[];
+    const viaHella=triangle&&[normalizeTerminal(s.name),normalizeTerminal(destination)].sort().join('|')==='dragsvik|vangsnes';
     const c=calculate(s);const best=c.recommended;const latest=best&&c.drive!=null?new Date(best.when-(c.drive+c.margin)*60000):null;
     const noRoute=c.drive==null;
     const next=s.departures.find(d=>!d.cancelled&&Date.parse(d.expected)>=c.now);
     return `<div class="connection-card"><div class="sectionhead" style="margin-bottom:2px"><h2>${esc([s.samband.road,s.samband.name].filter(Boolean).join(' '))}</h2>${s.straightKm==null?'':`<span class="sub">${s.straightKm} km luftlinje</span>`}</div>
       <div class="sectionhead" style="margin-bottom:2px">
-       <div class="sub" aria-live="polite">Fra ${esc(s.name)}${s.destination?' til '+esc(s.destination):''} · ${next?'Neste avgang kl. '+fmt(next.expected):'Ingen kommende avgang funnet'}</div>
-       <button type="button" class="linkbtn" data-line="${esc(lineId)}" data-direction="${esc(nextDirection?.key||'')}" data-stop="${esc(s.id)}" data-to="${esc(s.destination)}" aria-label="${nextDirection?'Bytt retning til fra '+esc(nextDirection.name)+(nextDirection.destination?' til '+esc(nextDirection.destination):''):'Finn avgang fra den andre kaia'}">⇄ Bytt</button>
+       <div class="sub" aria-live="polite">Fra ${esc(s.name)}${destination?' til '+esc(destination):''}${viaHella?' · via Hella, same ferje (bilen kan måtte snu)':''} · ${next?'Neste avgang kl. '+fmt(next.expected):'Ingen kommende avgang funnet'}</div>
+       ${triangle?'':`<button type="button" class="linkbtn" data-line="${esc(lineId)}" data-direction="${esc(nextDirection?.key||'')}" data-stop="${esc(s.id)}" data-to="${esc(s.destination)}" aria-label="${nextDirection?'Bytt retning til fra '+esc(nextDirection.name)+(nextDirection.destination?' til '+esc(nextDirection.destination):''):'Finn avgang fra den andre kaia'}">⇄ Bytt</button>`}
       </div>
+      ${triangle?`<div class="triangle-targets" role="group" aria-label="Vel reisemål frå ${esc(s.name)}">${targets.map(target=>`<button type="button" class="${normalizeTerminal(target)===normalizeTerminal(destination)?'active':''}" data-triangle-line="${esc(lineId)}" data-triangle-from="${esc(s.id)}" data-triangle-to="${esc(target)}" aria-pressed="${normalizeTerminal(target)===normalizeTerminal(destination)}">Til ${esc(target)}</button>`).join('')}</div>`:''}
       <div class="sub">${noRoute?'Kjøretid ikke tilgjengelig — ingen avgang kan anbefales':`Estimert kjøring ${c.drive} min · ${s.route.distanceKm} km vei · sikkerhetsmargin ${c.margin} min`}</div>
       ${latest?`<div class="notice" style="background:#e9f5ee;color:#147d55;border-color:#b8ddc7"><b>Reis senest kl. ${fmt(latest)}</b> for ferja kl. ${fmt(best.expected)}. ${Date.now()>latest.getTime()?'Avreisefristen er passert.':''}</div>`:''}
       ${!c.items.length?'<div class="empty">Ingen avganger funnet i tidsvinduet (Entur).</div>':''}
@@ -245,6 +264,7 @@
    $('mapstatus').textContent='Ferjekaier fra Entur';showMarkers(data.stops);
   }
   async function find(){if(!position&&!selectedPierId){toast('Bruk «Min posisjon» eller velg et startpunkt på kartet.');return;}if(mode==='bus'){toast('Bussruter er ikke implementert ennå. Velg Bil for beregning.');return;}
+   triangleChoices.clear();triangleResults.clear();
    const origin=position;
    departureRequest?.abort();
    const request=new AbortController();
@@ -258,6 +278,26 @@
   }
   $('locate').addEventListener('click',locate);$('find').addEventListener('click',find);$('buffer').addEventListener('change',render);
   $('results').addEventListener('click',async event=>{
+   const triangleButton=event.target.closest('button[data-triangle-to]');
+   if(triangleButton){
+    const {triangleLine:line,triangleFrom:from,triangleTo:to}=triangleButton.dataset;
+    const current=data,key=JSON.stringify([line,from,to]);
+    if(triangleResults.has(key)){triangleChoices.set(line,to);render();return;}
+    const params=new URLSearchParams(position||{});
+    params.set('lineId',line);params.set('fromStopId',from);params.set('triangleTo',to);
+    triangleButton.disabled=true;triangleButton.textContent='Hentar …';
+    try{
+     const response=await fetch('/.netlify/functions/ferjer?'+params,{cache:'no-store'});
+     const result=await response.json();
+     if(data!==current)return;
+     if(!response.ok)throw Error(result.error||'Kunne ikkje hente avgangar til valt kai.');
+     const stop=result.stops?.[0];
+     if(!stop)throw Error(result.message||'Fant ikkje avgangar for denne ruta.');
+     triangleResults.set(key,stop);triangleChoices.set(line,to);render();
+    }catch(error){if(data===current)toast(error.message);}
+    finally{triangleButton.disabled=false;}
+    return;
+   }
    const button=event.target.closest('button[data-direction]');
    if(!button)return;
    const {line,direction,stop,to}=button.dataset;
@@ -324,6 +364,7 @@
    if(!button)return;
    selectedPierId=button.dataset.pier;
    chosenDirections.clear();
+   triangleChoices.clear();triangleResults.clear();
    $('allnearby').hidden=false;
    showPierSearch(false);
    find();
@@ -331,6 +372,7 @@
   $('allnearby').addEventListener('click',()=>{
    selectedPierId='';
    chosenDirections.clear();
+   triangleChoices.clear();triangleResults.clear();
    $('allnearby').hidden=true;
    showPierSearch(false);
    if(position){find();return;}

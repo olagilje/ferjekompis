@@ -7,6 +7,7 @@ Ferjekompis viser kommande ferjeavgangar frå Entur og reknar ut ei rettleiande 
 - Finne ferjer nær GPS-posisjonen eller eit valt punkt på kartet.
 - Søkje etter ei bestemt ferjekai i Entur og vise avgangar derfrå, også utan GPS.
 - Bytte kai/retning innanfor eit samband.
+- Vise trekantsambandet Rv. 13 Vangsnes–Hella–Dragsvik som eitt kort med eigne målknappar og avgangar filtrerte etter stoppemønsteret til ferja.
 - Vise rutetid, sanntidsinformasjon når Entur har det, og kansellerte avgangar.
 - Rekne ut kva avgang som kan vere aktuell med vald sikkerheitsmargin (5 minutt som standard).
 - I automatisk nærvising ligg samband med over 90 minutt estimert køyretid under «Vis også …»; eit manuelt søk på kai viser alle funne samband direkte.
