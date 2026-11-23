@@ -100,6 +100,16 @@ async function searchPiers(text){
  return features.flatMap(({properties:p})=>p.id?.startsWith('NSR:StopPlace:')&&p.names?.display
   ?[{id:p.id,label:p.names.display}]:[]);
 }
+async function nearbyPlace(lat,lon){
+ const params=new URLSearchParams({'point.lat':String(lat),'point.lon':String(lon),lang:'no',size:'5',layers:'locality,address'});
+ const response=await fetch('https://api.entur.io/geocoder/v1/reverse?'+params,{headers:HEADERS,signal:AbortSignal.timeout(5000)});
+ if(!response.ok)throw Error('Kunne ikke slå opp nærområdet.');
+ const {features=[]}=await response.json();
+ const place=features.find(({properties:p={}})=>Array.isArray(p.category)&&p.category.some(c=>/place|neighbourhood/i.test(c)))
+  ||features.find(({properties:p={}})=>p.locality||p.layer==='locality');
+ const p=place?.properties;
+ return p?.name||p?.locality||'';
+}
 async function selectedPier(id,origin){
  const start=new Date(Date.now()-75*60000).toISOString();
  const {stopPlaces}=await graphql(Q_CALLS,{ids:[id],start});
@@ -168,6 +178,10 @@ export async function handler(event){
   if(typeof p.pierSearch==='string'){
    const text=p.pierSearch.trim().slice(0,75);
    return reply(200,{piers:text.length>=2?await searchPiers(text):[]});
+  }
+  if(p.nearby==='1'){
+   if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat<57||lat>72||lon<4||lon>32)return reply(400,{error:'Ugyldig norsk posisjon.'});
+   return reply(200,{name:await nearbyPlace(lat,lon)});
   }
   if(p.stopId){
    if(!/^NSR:StopPlace:\d+$/.test(p.stopId))return reply(400,{error:'Ugyldig ferjekai.'});

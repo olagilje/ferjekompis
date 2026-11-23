@@ -17,6 +17,7 @@
     .brand{display:flex;gap:10px;align-items:center}.logo{width:42px;height:42px;border-radius:14px;background:var(--ink);display:grid;place-items:center;color:#fff;font-size:22px}
     h1{font-size:21px;line-height:1;margin:0;letter-spacing:-.5px}.tag{font-size:11px;color:var(--muted);margin-top:4px}
     .pill{border:1px solid var(--line);background:#fff;border-radius:30px;padding:7px 11px;font-size:12px;color:var(--muted)}
+    .autolocate-pill{display:flex;align-items:center;gap:6px;white-space:nowrap;cursor:pointer}.autolocate-pill input{margin:0;accent-color:var(--green)}
     .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;margin-bottom:13px;box-shadow:0 4px 16px rgba(16,42,39,.035)}
     .locrow{display:flex;justify-content:space-between;align-items:center;gap:10px}.eyebrow{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:700}
     .location{font-size:16px;font-weight:650;margin-top:4px}.sub{font-size:12px;color:var(--muted);margin-top:3px}
@@ -70,7 +71,7 @@
 <div class="shell">
   <header>
     <div class="brand"><div class="logo">⛴</div><div><h1>Ferjekompis</h1><div class="tag">Reis når du rekker ferja</div></div></div>
-    <div class="pill">Entur-test</div>
+    <label class="pill autolocate-pill" for="autolocate" title="Hent posisjon automatisk når Ferjekompis opnar"><input type="checkbox" id="autolocate"><span>Auto posisjon</span></label>
   </header>
 
   <section class="card">
@@ -155,6 +156,17 @@
    }
    data=null;
    find();
+   lookupNearbyPlace(lat,lon,fromMap);
+  }
+  async function lookupNearbyPlace(lat,lon,fromMap){
+   try{
+    const params=new URLSearchParams({nearby:'1',lat:String(lat),lon:String(lon)});
+    const response=await fetch('/.netlify/functions/ferjer?'+params,{cache:'no-store'});
+    if(!response.ok)return;
+    const {name}=await response.json();
+    if(!name||position?.lat!==lat||position?.lon!==lon)return;
+    $('place').textContent=`${fromMap?'Valgt nær':'Nær'} ${name}`;
+   }catch{}
   }
   function chooseMapPoint({lat,lng}){
    if(lat<57||lat>72||lng<4||lng>32){toast('Velg et startpunkt i Norge.');return;}
@@ -162,7 +174,7 @@
    $('locate').textContent='⌖ Min posisjon';
    setLocation(lat,lng,true);
   }
-  function locate(){
+  function locate({timeout=15000,quiet=false}={}){
    if(!navigator.geolocation){toast('Posisjon er ikke tilgjengelig. Velg startpunkt på kartet.');return;}
    const request=++locationRequest;
    $('locate').textContent='Henter …';
@@ -170,12 +182,17 @@
     if(request!==locationRequest)return;
     setLocation(p.coords.latitude,p.coords.longitude);
     $('locate').textContent='⌖ Oppdater posisjon';
-   },()=>{
+   },error=>{
     if(request!==locationRequest)return;
     $('locate').textContent='⌖ Min posisjon';
-    toast('Klarte ikke å hente posisjonen. Velg startpunkt på kartet.');
-   },{enableHighAccuracy:true,timeout:15000,maximumAge:30000});
+    if(error.code===1){$('autolocate').checked=false;saveAutoLocation(false);}
+    if(!quiet)toast('Klarte ikke å hente posisjonen. Velg startpunkt på kartet.');
+   },{enableHighAccuracy:true,timeout,maximumAge:30000});
   }
+  const AUTO_LOCATION_KEY='ferjekompis-auto-location';
+  function autoLocationEnabled(){try{return localStorage.getItem(AUTO_LOCATION_KEY)==='1';}catch{return false;}}
+  function saveAutoLocation(enabled){try{localStorage.setItem(AUTO_LOCATION_KEY,enabled?'1':'0');}catch{}}
+  function startAutomaticLocation(){if(autoLocationEnabled())locate({timeout:5000,quiet:true});}
   function showMarkers(stops){if(!map)return;markers.forEach(m=>map.removeLayer(m));markers=[];for(const s of stops){const m=L.marker([s.lat,s.lon]).addTo(map).bindPopup(esc(s.name));markers.push(m);}if(stops.length){const points=stops.map(s=>[s.lat,s.lon]);if(position)points.push([position.lat,position.lon]);map.fitBounds(L.latLngBounds(points),{padding:[25,25],maxZoom:12});}}
   function calculate(stop){const margin=Number($('buffer').value),now=Date.now();const drive=stop.route?.minutes;
    const sorted=stop.departures.map(d=>({...d,when:new Date(d.expected).getTime()})).filter(d=>Number.isFinite(d.when)).sort((a,b)=>a.when-b.when);
@@ -282,6 +299,9 @@
    finally{if(request===departureRequest){departureRequest=null;$('find').disabled=(!position&&!selectedPierId);$('find').textContent='↻ Oppdater ferjeavganger';}}
   }
   $('locate').addEventListener('click',locate);$('find').addEventListener('click',find);$('buffer').addEventListener('change',render);
+  $('autolocate').checked=autoLocationEnabled();
+  $('autolocate').addEventListener('change',event=>{saveAutoLocation(event.target.checked);if(event.target.checked)locate({timeout:5000,quiet:true});});
+  startAutomaticLocation();
   $('results').addEventListener('click',async event=>{
    const triangleButton=event.target.closest('button[data-triangle-line]');
    if(triangleButton){
