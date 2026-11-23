@@ -7,6 +7,7 @@
   <meta name="description" content="Ferjekompis – finn ferja du rekker, og når du må reise.">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <title>Ferjekompis</title>
   <style>
@@ -17,6 +18,7 @@
     .brand{display:flex;gap:10px;align-items:center}.logo{width:42px;height:42px;border-radius:14px;background:var(--ink);display:grid;place-items:center;color:#fff;font-size:22px}
     h1{font-size:21px;line-height:1;margin:0;letter-spacing:-.5px}.tag{font-size:11px;color:var(--muted);margin-top:4px}
     .pill{border:1px solid var(--line);background:#fff;border-radius:30px;padding:7px 11px;font-size:12px;color:var(--muted)}
+    .autolocate-pill{display:flex;align-items:center;gap:6px;white-space:nowrap;cursor:pointer}.autolocate-pill input{margin:0;accent-color:var(--green)}
     .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;margin-bottom:13px;box-shadow:0 4px 16px rgba(16,42,39,.035)}
     .locrow{display:flex;justify-content:space-between;align-items:center;gap:10px}.eyebrow{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:700}
     .location{font-size:16px;font-weight:650;margin-top:4px}.sub{font-size:12px;color:var(--muted);margin-top:3px}
@@ -24,9 +26,8 @@
     .smallbtn{background:var(--pale);color:var(--green);font-weight:700;border-radius:12px;padding:10px 12px;font-size:13px;white-space:nowrap}
     .primary{width:100%;background:var(--ink);color:#fff;border-radius:14px;padding:15px;font-weight:700;margin-top:12px}
     .primary:disabled{opacity:.45;cursor:default}
-    .transport{display:flex;background:#edf1ed;border-radius:13px;padding:4px;gap:4px;margin-top:10px}
-    .transport button{flex:1;padding:10px;border-radius:10px;background:transparent;color:var(--muted);font-weight:650}
-    .transport button.active{background:#fff;color:var(--ink);box-shadow:0 1px 4px #102a2714}
+    .entur-link{display:inline-flex;align-items:center;margin-top:6px;padding:7px 8px;border:1px solid #eaeaf1;border-left:2px solid #ff5959;border-radius:8px;background:#f6f6f9;color:#181c56;font-size:12px;font-weight:600;text-decoration:none}
+    .entur-link:hover{background:#eaeaf1;color:#181c56}
     .mapwrap{height:190px;border-radius:15px;overflow:hidden;background:#e2ebe5;position:relative}
     #map{height:100%;width:100%}.mapnote{position:absolute;z-index:500;bottom:9px;left:9px;background:#fffE;padding:6px 9px;border-radius:9px;font-size:11px;color:var(--muted)}
     .sectionhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
@@ -34,11 +35,25 @@
     .notice{background:#fff8e9;border:1px solid #f2e4c4;border-radius:13px;padding:11px 12px;font-size:12px;color:#755b28;margin-top:12px}
     .status{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}.dot{width:8px;height:8px;border-radius:50%;background:var(--gold)}
     .empty{padding:20px 8px;text-align:center;color:var(--muted);font-size:13px}
-    .ferry{border:1px solid var(--line);border-radius:15px;padding:13px;margin-top:9px}
+    .ferry{border:1px solid var(--line);border-radius:10px;margin-top:6px}
     .ferry.recommended{background:var(--pale);border-color:#b8ddc7}
-    .ferry.missed{opacity:.48;background:#f6f7f6}
+    .ferry.recommended{border-radius:15px;padding:13px;margin-top:9px}
+    .connection-card{margin-top:16px}
+    .connection-card + .connection-card{border-top:1px solid var(--line);padding-top:16px}
+    .farther-connections{margin-top:12px}.farther-connections>summary{cursor:pointer;color:var(--green);font-size:13px;font-weight:700;padding:10px 4px}
+    .triangle-targets{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}.triangle-targets button{border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--green);padding:7px 12px;font-size:12px;font-weight:700}.triangle-targets button.active{background:var(--green);border-color:var(--green);color:#fff}.triangle-targets button:disabled{opacity:.6}
+    .results-actions{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+    .refreshbtn{background:var(--pale);color:var(--green);border-radius:999px;padding:6px 10px;min-height:36px;font-size:12px;font-weight:700}
+    .refreshbtn:disabled{opacity:.6;cursor:default}
+    .ferry.missed{background:#f6f7f6}
+    .ferry > summary{list-style:none;cursor:pointer;padding:6px 10px;min-height:42px;box-sizing:border-box;border-radius:9px}
+    .ferry > summary::-webkit-details-marker{display:none}
+    .ferry > summary:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+    .ferry .time{font-size:16px;letter-spacing:0}
+    .ferry[open] .time,.ferry.recommended .time{font-size:25px;letter-spacing:-1px}
+    .departure-info{padding:0 10px 10px}
     .ferrytop{display:flex;align-items:center;justify-content:space-between;gap:10px}
-    .time{font-size:25px;font-weight:800;letter-spacing:-1px}.ferry.missed .time{text-decoration:line-through;text-decoration-color:var(--red);text-decoration-thickness:2px}
+    .time{font-size:25px;font-weight:800;letter-spacing:-1px}.ferry.missed .time{color:#6b716d;text-decoration:line-through;text-decoration-color:var(--red);text-decoration-thickness:2px}
     .label{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
     .state{font-size:11px;font-weight:750;border-radius:20px;padding:5px 8px;background:#edf1ed;color:var(--muted)}
     .recommended .state{background:#d4eddd;color:var(--green)}.missed .state{background:#f6e1e1;color:var(--red)}
@@ -56,8 +71,8 @@
 <body>
 <div class="shell">
   <header>
-    <div class="brand"><div class="logo">⛴</div><div><h1>Ferjekompis</h1><div class="tag">Reis når du rekker ferja</div></div></div>
-    <div class="pill">Entur-test</div>
+    <div class="brand"><div class="logo">⛴</div><div><h1>Ferjekompis</h1><div class="tag">Reis så du rekk ferja</div></div></div>
+    <label class="pill autolocate-pill" for="autolocate" title="Hent posisjon automatisk når Ferjekompis opnar"><input type="checkbox" id="autolocate"><span>Auto posisjon</span></label>
   </header>
 
   <section class="card">
@@ -66,15 +81,11 @@
       <button class="smallbtn" id="locate">⌖ Min posisjon</button>
     </div>
     <button class="linkbtn" id="picklocation" aria-pressed="false" disabled>Velg startpunkt på kartet</button>
-    <div class="transport" role="group" aria-label="Transportmiddel">
-      <button class="active" data-mode="car">🚗 Bil</button>
-      <button data-mode="bus">🚌 Buss</button>
-    </div>
-    <div class="settings">
+    <div class="sub" id="locationhint">Posisjonen blir brukt til å finne kaiar. Appen prøver vegdata frå Statens vegvesen først, med OSRM som reserve.</div>
+    <div class="settings" id="carsettings">
       <span class="sub">Sikkerhetsmargin før avgang</span>
-      <select id="buffer"><option value="5">5 minutter</option><option value="10" selected>10 minutter</option><option value="15">15 minutter</option><option value="20">20 minutter</option></select>
+      <select id="buffer"><option value="5" selected>5 minutter</option><option value="10">10 minutter</option><option value="15">15 minutter</option><option value="20">20 minutter</option></select>
     </div>
-    <button class="primary" id="find">Finn ferjer i nærheten</button>
   </section>
 
   <section class="card">
@@ -84,13 +95,15 @@
   </section>
 
   <section class="card">
-    <div class="sectionhead"><h2>Ferjer du kan rekke</h2><button class="linkbtn" id="manualtoggle">Velg annet samband</button></div>
-    <div id="results"><div class="empty">Bruk «Min posisjon» eller velg et startpunkt på kartet.</div></div>
-    <div id="manual" style="display:none">
-      <div class="sub" style="margin-top:12px">Søk etter ferjekai eller samband for å overstyre automatisk forslag.</div>
-      <div class="manual"><input id="manualname" placeholder="F.eks. Halhjem, Sandvikvåg"><button id="manualadd">Velg</button></div>
+    <div class="sectionhead"><h2 id="resultstitle">Ferjer du kan rekke</h2></div>
+    <div class="results-actions"><button class="linkbtn" id="manualtoggle" aria-expanded="false" aria-controls="manual">Søk etter ferjekai</button><button type="button" class="refreshbtn" id="find" disabled>↻ Oppdater ferjeavganger</button></div>
+    <button type="button" class="linkbtn" id="allnearby" hidden>Vis alle i nærheten</button>
+    <div id="manual" hidden>
+      <form class="manual" id="pierform"><input type="search" id="manualname" aria-label="Navn på ferjekai" placeholder="F.eks. Halhjem eller Mortavika" required minlength="2" maxlength="75"><button type="submit">Søk</button></form>
+      <div id="piermatches" aria-live="polite"></div>
     </div>
-    <div class="notice" id="warning"><b>Testversjon:</b> Rutetider hentes fra Entur. Kjøretid hentes fra en offentlig OSRM-testserver og er bare veiledende. Kontroller alltid ferjeavgangen og møt opp i god tid. Biltransport / innsjekk er ikke verifisert.</div>
+    <div id="results"><div class="empty">Bruk «Min posisjon» eller velg et startpunkt på kartet.</div></div>
+    <div class="notice" id="warning"><b>Berre rettleiande:</b> Køyretid og avstand er estimat. Ved lange turar til ferjekaia, særleg når ruta krev fleire ferjer, kan dei vere unøyaktige. Sjekk ruta i ruteplanleggjaren du vanlegvis brukar, og kontroller avgang og oppmøtetid hjå ferjeoperatøren. Kø, oppstilling og innsjekk kan påverke reisa.</div>
   </section>
   <footer>Ferjekompis · Bygges steg for steg i Norge 🇳🇴</footer>
 </div>
@@ -99,10 +112,15 @@
 <script>
 (() => {
   const $=id=>document.getElementById(id);
-  let position=null,mode='car',map=null,marker=null,markers=[],data=null,manualChoice='';
+  let position=null,map=null,marker=null,markers=[],data=null,selectedPierId='';
+  let pierSearchRequest;
   let pickingLocation=false, locationRequest=0;
+  const chosenDirections=new Map();
+  const triangleOrigins=new Map(),triangleChoices=new Map(),triangleResults=new Map();
+  let departureRequest;
   const toast=msg=>{const e=$('toast');e.textContent=msg;e.style.display='block';clearTimeout(window.__toastTimer);window.__toastTimer=setTimeout(()=>e.style.display='none',4300);};
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const normalizeTerminal=s=>String(s??'').normalize('NFC').toLocaleLowerCase('nb-NO').replace(/\b(?:ferjekai|fergekai|kai)\b/g,'').trim();
   const fmt=iso=>new Date(iso).toLocaleTimeString('no-NO',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Oslo'});
   function initMap(){
    if(!window.L){$('mapstatus').textContent='Kart kunne ikke lastes';return;}
@@ -123,6 +141,10 @@
   }
   function setLocation(lat,lon,fromMap=false){
    position={lat,lon};
+   selectedPierId='';
+   $('allnearby').hidden=true;
+   chosenDirections.clear();
+   triangleOrigins.clear();triangleChoices.clear();triangleResults.clear();
    setPickingLocation(false);
    const label=fromMap?'Valgt på kartet':'Din posisjon';
    $('place').textContent=label;
@@ -134,7 +156,18 @@
     map.setView([lat,lon],fromMap?map.getZoom():11);
    }
    data=null;
-   $('results').innerHTML='<div class="empty">Startpunktet er valgt. Trykk «Finn ferjer i nærheten».</div>';
+   find();
+   lookupNearbyPlace(lat,lon,fromMap);
+  }
+  async function lookupNearbyPlace(lat,lon,fromMap){
+   try{
+    const params=new URLSearchParams({nearby:'1',lat:String(lat),lon:String(lon)});
+    const response=await fetch('/.netlify/functions/ferjer?'+params,{cache:'no-store'});
+    if(!response.ok)return;
+    const {name}=await response.json();
+    if(!name||position?.lat!==lat||position?.lon!==lon)return;
+    $('place').textContent=`${fromMap?'Valgt nær':'Nær'} ${name}`;
+   }catch{}
   }
   function chooseMapPoint({lat,lng}){
    if(lat<57||lat>72||lng<4||lng>32){toast('Velg et startpunkt i Norge.');return;}
@@ -142,7 +175,7 @@
    $('locate').textContent='⌖ Min posisjon';
    setLocation(lat,lng,true);
   }
-  function locate(){
+  function locate({timeout=15000,quiet=false}={}){
    if(!navigator.geolocation){toast('Posisjon er ikke tilgjengelig. Velg startpunkt på kartet.');return;}
    const request=++locationRequest;
    $('locate').textContent='Henter …';
@@ -150,18 +183,23 @@
     if(request!==locationRequest)return;
     setLocation(p.coords.latitude,p.coords.longitude);
     $('locate').textContent='⌖ Oppdater posisjon';
-   },()=>{
+   },error=>{
     if(request!==locationRequest)return;
     $('locate').textContent='⌖ Min posisjon';
-    toast('Klarte ikke å hente posisjonen. Velg startpunkt på kartet.');
-   },{enableHighAccuracy:true,timeout:15000,maximumAge:30000});
+    if(error.code===1){$('autolocate').checked=false;saveAutoLocation(false);}
+    if(!quiet)toast('Klarte ikke å hente posisjonen. Velg startpunkt på kartet.');
+   },{enableHighAccuracy:true,timeout,maximumAge:30000});
   }
-  function showMarkers(stops){if(!map)return;markers.forEach(m=>map.removeLayer(m));markers=[];for(const s of stops){const m=L.marker([s.lat,s.lon]).addTo(map).bindPopup(esc(s.name));markers.push(m);}if(position&&stops.length){map.fitBounds(L.latLngBounds([[position.lat,position.lon],...stops.map(s=>[s.lat,s.lon])]),{padding:[25,25],maxZoom:12});}}
+  const AUTO_LOCATION_KEY='ferjekompis-auto-location';
+  function autoLocationEnabled(){try{return localStorage.getItem(AUTO_LOCATION_KEY)==='1';}catch{return false;}}
+  function saveAutoLocation(enabled){try{localStorage.setItem(AUTO_LOCATION_KEY,enabled?'1':'0');}catch{}}
+  function startAutomaticLocation(){if(autoLocationEnabled())locate({timeout:5000,quiet:true});}
+  function showMarkers(stops){if(!map)return;markers.forEach(m=>map.removeLayer(m));markers=[];for(const s of stops){const m=L.marker([s.lat,s.lon]).addTo(map).bindPopup(esc(s.name));markers.push(m);}if(stops.length){const points=stops.map(s=>[s.lat,s.lon]);if(position)points.push([position.lat,position.lon]);map.fitBounds(L.latLngBounds(points),{padding:[25,25],maxZoom:12});}}
   function calculate(stop){const margin=Number($('buffer').value),now=Date.now();const drive=stop.route?.minutes;
    const sorted=stop.departures.map(d=>({...d,when:new Date(d.expected).getTime()})).filter(d=>Number.isFinite(d.when)).sort((a,b)=>a.when-b.when);
    const relevant=sorted.filter(d=>d.when>now-75*60000);
    const eligible=d=>!d.cancelled&&d.carFerry&&drive!=null&&d.when>=now+(drive+margin)*60000;
-   const recommended=mode==='car'?relevant.find(eligible):null;
+   const recommended=relevant.find(eligible);
    let missed=relevant.filter(d=>d.when<now||d.cancelled||(drive!=null&&!eligible(d)));
    // Include the last missed one, followed by first available and subsequent departures.
    missed=missed.slice(-1);
@@ -178,39 +216,197 @@
      connections.get(key).departures.push(departure);
     }
    }
-   return [...connections.values()].sort((a,b)=>a.samband.priority-b.samband.priority||a.straightKm-b.straightKm||a.samband.name.localeCompare(b.samband.name,'nb'));
+   const byLine=new Map();
+   for(const [key,direction] of connections){
+    const lineId=direction.departures[0].lineId;
+    if(!byLine.has(lineId))byLine.set(lineId,[]);
+    byLine.get(lineId).push({key,...direction});
+   }
+   const cards=[...byLine].map(([lineId,directions])=>{
+    directions.sort((a,b)=>a.straightKm-b.straightKm||a.name.localeCompare(b.name,'nb')||a.destination.localeCompare(b.destination,'nb'));
+    const selected=Math.max(0,directions.findIndex(d=>d.key===chosenDirections.get(lineId)));
+    return {lineId,nearest:directions[0],direction:directions[selected],next:directions.length>1?directions[(selected+1)%directions.length]:null,directions};
+   });
+   return cards.sort((a,b)=>a.nearest.samband.priority-b.nearest.samband.priority||a.nearest.straightKm-b.nearest.straightKm||a.nearest.samband.name.localeCompare(b.nearest.samband.name,'nb'));
   }
-  function render(){if(!data)return;if(mode==='bus'){$('results').innerHTML='<div class="empty">Buss er ikke koblet til Entur ennå. Velg Bil for å se ferjeavganger og kjøreberegning.</div>';return;}
+  function enturBusLink(stop){
+   const params=new URLSearchParams({stopId:stop.id,transportModes:'bus'});
+   return `<a class="entur-link" href="https://entur.no/travel-result?${params}" target="_blank" rel="noopener noreferrer">Finn buss til ${esc(stop.name)} i Entur ↗</a>`;
+  }
+  function render(){if(!data)return;
+   const fartherWasOpen=$('results').querySelector('.farther-connections')?.open??false;
    const list=groupConnections(data.stops);
-   $('results').innerHTML=`<div class="sub">Entur-data hentet ${fmt(data.fetchedAt)} · ${list.length} ferjeruter</div>`+(!list.length?'<div class="empty">Ingen avganger funnet for europaveg-, riksveg- eller fylkesvegferjer i søkeområdet.</div>':'')+list.map(s=>{
+   const automaticView=!selectedPierId;
+   const driveMinutes=connection=>calculate(connection.nearest).drive;
+   const nearby=automaticView?list.filter(connection=>driveMinutes(connection)==null||driveMinutes(connection)<=90):list;
+   const farther=automaticView?list.filter(connection=>driveMinutes(connection)>90):[];
+   const renderCards=connections=>connections.map(connection=>{
+    const {lineId,next:nextDirection}=connection;
+    let s=connection.direction,destination='',triangle=Array.isArray(connection.nearest.samband.terminals);
+    let sourceName='';
+    if(triangle){
+     const nearest=connection.nearest;
+     sourceName=triangleOrigins.get(lineId)||nearest.samband.terminals.find(name=>normalizeTerminal(name)===normalizeTerminal(nearest.name))||nearest.name;
+     const originStop=data.stops.find(stop=>normalizeTerminal(stop.name)===normalizeTerminal(sourceName))||nearest;
+     const originDirections=connection.directions.filter(d=>normalizeTerminal(d.name)===normalizeTerminal(sourceName));
+     const nextTime=d=>d.departures.map(call=>Date.parse(call.expected)).filter(time=>time>=Date.now()).sort((a,b)=>a-b)[0]??Infinity;
+     const defaultDirection=[...originDirections].sort((a,b)=>nextTime(a)-nextTime(b))[0]||null;
+     const possibleTargets=nearest.samband.terminals.filter(name=>normalizeTerminal(name)!==normalizeTerminal(sourceName));
+     const scheduledDestination=normalizeTerminal(defaultDirection?.destination);
+     const defaultTarget=possibleTargets.find(name=>scheduledDestination.includes(normalizeTerminal(name)))||possibleTargets[0]||'';
+     destination=triangleChoices.get(lineId)||defaultTarget;
+     const cached=triangleResults.get(JSON.stringify([lineId,sourceName,destination]));
+     const initialCalls=defaultDirection&&scheduledDestination.includes(normalizeTerminal(destination))?defaultDirection.departures:[];
+     s={...originStop,...defaultDirection,...cached,samband:nearest.samband,name:cached?.name||originStop.name,id:cached?.id||originStop.id,route:cached?.route??originStop.route,destination,departures:cached?.departures||initialCalls};
+    }
+    const origins=triangle?s.samband.terminals:[];
+    const targets=triangle?origins.filter(name=>normalizeTerminal(name)!==normalizeTerminal(sourceName)):[];
+    const viaHella=triangle&&[normalizeTerminal(s.name),normalizeTerminal(destination)].sort().join('|')==='dragsvik|vangsnes';
     const c=calculate(s);const best=c.recommended;const latest=best&&c.drive!=null?new Date(best.when-(c.drive+c.margin)*60000):null;
     const noRoute=c.drive==null;
     const next=s.departures.find(d=>!d.cancelled&&Date.parse(d.expected)>=c.now);
-    return `<div style="margin-top:16px"><div class="sectionhead" style="margin-bottom:2px"><h2>${esc([s.samband.road,s.samband.name].filter(Boolean).join(' '))}</h2><span class="sub">${s.straightKm} km luftlinje</span></div>
-      <div class="sub">Fra ${esc(s.name)}${s.destination?' til '+esc(s.destination):''} · ${next?'Neste avgang kl. '+fmt(next.expected):'Ingen kommende avgang funnet'}</div>
-      <div class="sub">${noRoute?'Kjøretid ikke tilgjengelig — ingen avgang kan anbefales':`Estimert kjøring ${c.drive} min · ${s.route.distanceKm} km vei · sikkerhetsmargin ${c.margin} min`}</div>
+    return `<div class="connection-card"><div class="sectionhead" style="margin-bottom:2px"><h2>${esc([s.samband.road,s.samband.name].filter(Boolean).join(' '))}</h2>${s.straightKm==null?'':`<span class="sub">${s.straightKm} km luftlinje</span>`}</div>
+      <div class="sectionhead" style="margin-bottom:2px">
+       <div class="sub" aria-live="polite">Fra ${esc(s.name)}${destination?' til '+esc(destination):''}${viaHella?' · via Hella, same ferje (bilen kan måtte snu)':''} · ${next?'Neste avgang kl. '+fmt(next.expected):'Ingen kommende avgang funnet'}</div>
+       ${triangle?'':`<button type="button" class="linkbtn" data-line="${esc(lineId)}" data-direction="${esc(nextDirection?.key||'')}" data-stop="${esc(s.id)}" data-to="${esc(s.destination)}" aria-label="${nextDirection?'Bytt retning til fra '+esc(nextDirection.name)+(nextDirection.destination?' til '+esc(nextDirection.destination):''):'Finn avgang fra den andre kaia'}">⇄ Bytt</button>`}
+      </div>
+      ${triangle?`<div class="sub">Avreisekai</div><div class="triangle-targets" role="group" aria-label="Vel avreisekai">${origins.map(origin=>`<button type="button" class="${normalizeTerminal(origin)===normalizeTerminal(sourceName)?'active':''}" data-triangle-line="${esc(lineId)}" data-triangle-origin="${esc(origin)}" aria-pressed="${normalizeTerminal(origin)===normalizeTerminal(sourceName)}">${esc(origin)}</button>`).join('')}</div><div class="sub">Reisemål</div><div class="triangle-targets" role="group" aria-label="Vel reisemål frå ${esc(sourceName)}">${targets.map(target=>`<button type="button" class="${normalizeTerminal(target)===normalizeTerminal(destination)?'active':''}" data-triangle-line="${esc(lineId)}" data-triangle-from="${esc(sourceName)}" data-triangle-to="${esc(target)}" aria-pressed="${normalizeTerminal(target)===normalizeTerminal(destination)}">Til ${esc(target)}</button>`).join('')}</div>`:''}
+      <div class="sub">${noRoute?'Kjøretid ikke tilgjengelig — ingen avgang kan anbefales':`Estimert kjøring ${c.drive} min · ${s.route.distanceKm} km vei · sikkerhetsmargin ${c.margin} min · ${s.route.source==='Statens vegvesen'?'Statens vegvesen':'OSRM-estimat'}`}</div>
       ${latest?`<div class="notice" style="background:#e9f5ee;color:#147d55;border-color:#b8ddc7"><b>Reis senest kl. ${fmt(latest)}</b> for ferja kl. ${fmt(best.expected)}. ${Date.now()>latest.getTime()?'Avreisefristen er passert.':''}</div>`:''}
       ${!c.items.length?'<div class="empty">Ingen avganger funnet i tidsvinduet (Entur).</div>':''}
-      ${c.items.length?'<details><summary>Vis avganger</summary>':''}${c.items.map(d=>{const isBest=best===d;const isMiss=d.cancelled||d.when<c.now||(mode==='car'&&c.drive!=null&&d.when<c.now+(c.drive+c.margin)*60000);return `<div class="ferry ${isBest?'recommended':isMiss?'missed':''}">
-        <div class="ferrytop"><div><div class="label">${esc(d.destination||d.line||'Ferjeavgang')}${d.realtime?' · Sanntid':' · Rutetid'}${d.carFerry?' · Bilferje':' · Biltransport ikke bekreftet'}</div><div class="time">${fmt(d.expected)}</div></div><span class="state">${d.cancelled?'Innstilt':isBest?'ANBEFALT':isMiss?'Rekker ikke':noRoute||!d.carFerry?'Uavklart':'Aktuell'}</span></div>
-        <div class="details"><span>${esc(d.line)}</span><span>${d.when>=c.now?'Om '+Math.max(0,Math.round((d.when-c.now)/60000))+' min':'Avgang passert'}</span></div></div>`;}).join('')}${c.items.length?'</details>':''}</div>`;
+      ${c.items.length?'<details><summary>Vis avganger</summary>':''}${c.items.map(d=>{const isBest=best===d;const isMiss=d.cancelled||d.when<c.now||(c.drive!=null&&d.when<c.now+(c.drive+c.margin)*60000);
+       const label=`<div class="label">${esc(d.destination||d.line||'Ferjeavgang')}${d.realtime?' · Sanntid':' · Rutetid'}${d.carFerry?' · Bilferje':' · Biltransport ikke bekreftet'}</div>`;
+       const timing=`<span class="time">${fmt(d.expected)}</span>`;
+       const details=`<div class="details"><span>${esc(d.line)}</span><span>${d.when>=c.now?'Om '+Math.max(0,Math.round((d.when-c.now)/60000))+' min':'Avgang passert'}</span></div>`;
+       if(isBest)return `<div class="ferry recommended"><div class="ferrytop"><div>${label}${timing}</div></div>${details}</div>`;
+       const status=d.cancelled?'Innstilt':position&&!isMiss&&!d.carFerry?'Uavklart':'';
+       return `<details class="ferry ${isMiss?'missed':''}">
+        <summary class="ferrytop">${timing}${status?`<span class="state">${status}</span>`:''}</summary>
+       <div class="departure-info">${label}${details}</div></details>`;}).join('')}${c.items.length?`${enturBusLink(s)}</details>`:enturBusLink(s)}</div>`;
    }).join('');
+   $('results').innerHTML=`<div class="sub">Entur-data hentet ${fmt(data.fetchedAt)} · ${list.length} ferjesamband</div>`+(!list.length?'<div class="empty">Ingen avganger funnet for europaveg-, riksveg- eller fylkesvegferjer i søkeområdet.</div>':'')+renderCards(nearby)+(farther.length?`<details class="farther-connections"${fartherWasOpen?' open':''}><summary>Vis også ${farther.length} samband med over 90 min køyretid</summary>${renderCards(farther)}</details>`:'');
    $('mapstatus').textContent='Ferjekaier fra Entur';showMarkers(data.stops);
   }
-  async function find(){if(!position){toast('Bruk «Min posisjon» eller velg et startpunkt på kartet.');return;}if(mode==='bus'){toast('Bussruter er ikke implementert ennå. Velg Bil for beregning.');return;}
+  async function find(){if(!position&&!selectedPierId){toast('Bruk «Min posisjon» eller velg et startpunkt på kartet.');return;}
+   triangleOrigins.clear();triangleChoices.clear();triangleResults.clear();
    const origin=position;
+   departureRequest?.abort();
+   const request=new AbortController();
+   departureRequest=request;
+   data=null;
    $('find').disabled=true;$('find').textContent='Henter rutetider …';$('results').innerHTML='<div class="empty">Henter faktiske ferjekaier og avganger fra Entur …</div>';
-   try{const params=new URLSearchParams({lat:origin.lat,lon:origin.lon});if(manualChoice)params.set('search',manualChoice);
-    const response=await fetch('/.netlify/functions/ferjer?'+params,{cache:'no-store'});const json=await response.json();if(origin!==position)return;if(!response.ok)throw Error(json.error||'Forespørselen feilet');data=json;render();if(json.message)toast(json.message);
-   }catch(e){if(origin!==position)return;data=null;$('results').innerHTML='<div class="empty">Kunne ikke hente ekte data. '+esc(e.message)+'<p>Appen må publiseres på Netlify eller kjøres med Netlify Dev. Ingen eksempelavganger vises.</p></div>';}
-   finally{$('find').disabled=false;$('find').textContent='Oppdater ferjeavganger';}
+   try{const params=new URLSearchParams(origin||{});if(selectedPierId)params.set('stopId',selectedPierId);
+    const response=await fetch('/.netlify/functions/ferjer?'+params,{cache:'no-store',signal:request.signal});const json=await response.json();if(request!==departureRequest||origin!==position)return;if(!response.ok)throw Error(json.error||'Forespørselen feilet');data=json;render();if(json.message)toast(json.message);
+   }catch(e){if(request!==departureRequest||origin!==position)return;data=null;$('results').innerHTML='<div class="empty">Kunne ikke hente ekte data. '+esc(e.message)+'<p>Ingen eksempelavganger vises.</p></div>';}
+   finally{if(request===departureRequest){departureRequest=null;$('find').disabled=(!position&&!selectedPierId);$('find').textContent='↻ Oppdater ferjeavganger';}}
   }
   $('locate').addEventListener('click',locate);$('find').addEventListener('click',find);$('buffer').addEventListener('change',render);
+  $('autolocate').checked=autoLocationEnabled();
+  $('autolocate').addEventListener('change',event=>{saveAutoLocation(event.target.checked);if(event.target.checked)locate({timeout:5000,quiet:true});});
+  startAutomaticLocation();
+  $('results').addEventListener('click',async event=>{
+   const triangleButton=event.target.closest('button[data-triangle-line]');
+   if(triangleButton){
+    const {triangleLine:line}=triangleButton.dataset;
+    const card=groupConnections(data.stops).find(connection=>connection.lineId===line);
+    const terminals=card?.nearest.samband.terminals||[];
+    const from=triangleButton.dataset.triangleOrigin||triangleButton.dataset.triangleFrom;
+    const currentTarget=triangleChoices.get(line);
+    const to=triangleButton.dataset.triangleTo||(currentTarget&&normalizeTerminal(currentTarget)!==normalizeTerminal(from)?currentTarget:terminals.find(name=>normalizeTerminal(name)!==normalizeTerminal(from)));
+    if(!from||!to){toast('Vel både avreisekai og reisemål.');return;}
+    const current=data,key=JSON.stringify([line,from,to]);
+    if(triangleResults.has(key)){triangleOrigins.set(line,from);triangleChoices.set(line,to);render();return;}
+    const params=new URLSearchParams(position||{});
+    params.set('lineId',line);params.set('triangleFrom',from);params.set('triangleTo',to);
+    triangleButton.disabled=true;triangleButton.textContent='Hentar …';
+    try{
+     const response=await fetch('/.netlify/functions/ferjer?'+params,{cache:'no-store'});
+     const result=await response.json();
+     if(data!==current)return;
+     if(!response.ok)throw Error(result.error||'Kunne ikkje hente avgangar til valt kai.');
+     const stop=result.stops?.[0];
+     if(!stop)throw Error(result.message||'Fant ikkje avgangar for denne ruta.');
+     triangleResults.set(key,stop);triangleOrigins.set(line,from);triangleChoices.set(line,to);render();
+    }catch(error){if(data===current)toast(error.message);}
+    finally{triangleButton.disabled=false;}
+    return;
+   }
+   const button=event.target.closest('button[data-direction]');
+   if(!button)return;
+   const {line,direction,stop,to}=button.dataset;
+   if(direction)chosenDirections.set(line,direction);
+   else{
+    const current=data;
+    const params=new URLSearchParams({...position,lineId:line,fromStopId:stop,to});
+    button.disabled=true;
+    button.textContent='Henter …';
+    try{
+     const response=await fetch('/.netlify/functions/ferjer?'+params,{cache:'no-store'});
+     const result=await response.json();
+     if(data!==current)return;
+     if(!response.ok)throw Error(result.error||'Kunne ikke hente den andre kaia.');
+     const other=result.stops[0];
+     if(!other){toast(result.message);return;}
+     const existing=data.stops.find(s=>s.id===other.id);
+     if(existing)existing.departures=[...existing.departures.filter(d=>d.lineId!==line),...other.departures];
+     else data.stops.push(other);
+     chosenDirections.set(line,JSON.stringify([other.id,line,other.departures[0].destination]));
+    }catch(error){if(data===current)toast(error.message);return;}
+    finally{button.disabled=false;button.textContent='⇄ Bytt';}
+   }
+   render();
+   $('results').querySelector(`button[data-line="${CSS.escape(line)}"]`)?.focus();
+  });
   $('picklocation').addEventListener('click',()=>setPickingLocation(!pickingLocation));
   $('usemapcenter').addEventListener('click',()=>chooseMapPoint(map.getCenter()));
-  document.querySelectorAll('[data-mode]').forEach(btn=>btn.addEventListener('click',()=>{mode=btn.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===btn));if(mode==='bus')toast('Buss kommer i neste fase; visningen gir ikke buss-anbefalinger.');render();}));
-  $('manualtoggle').addEventListener('click',()=>{$('manual').style.display=$('manual').style.display==='none'?'block':'none';});
-  $('manualadd').addEventListener('click',()=>{manualChoice=$('manualname').value.trim();$('manual').style.display='none';find();});
+  function showPierSearch(open){
+   $('manual').hidden=!open;
+   $('manualtoggle').setAttribute('aria-expanded',String(open));
+   if(open)$('manualname').focus();
+  }
+  $('manualtoggle').addEventListener('click',()=>showPierSearch($('manual').hidden));
+  $('pierform').addEventListener('submit',async event=>{
+   event.preventDefault();
+   const text=$('manualname').value.trim();
+   if(text.length<2)return;
+   pierSearchRequest?.abort();
+   const request=new AbortController();
+   pierSearchRequest=request;
+   const matches=$('piermatches');
+   matches.textContent='Søker etter ferjekaier …';
+   try{
+    const response=await fetch('/.netlify/functions/ferjer?'+new URLSearchParams({pierSearch:text}),{signal:request.signal});
+    if(!response.ok)throw Error('Kunne ikke søke etter ferjekaier. Prøv igjen.');
+    const {piers}=await response.json();
+    if(request!==pierSearchRequest)return;
+    matches.innerHTML=piers.length?piers.map(pier=>`<div><button type="button" class="linkbtn" data-pier="${esc(pier.id)}">${esc(pier.label)}</button></div>`).join(''):'Fant ingen ferjekaier. Prøv et annet navn.';
+   }catch(error){if(request===pierSearchRequest&&!request.signal.aborted)matches.textContent=error.message;}
+  });
+  $('piermatches').addEventListener('click',event=>{
+   const button=event.target.closest('button[data-pier]');
+   if(!button)return;
+   selectedPierId=button.dataset.pier;
+   chosenDirections.clear();
+   triangleOrigins.clear();triangleChoices.clear();triangleResults.clear();
+   $('allnearby').hidden=false;
+   showPierSearch(false);
+   find();
+  });
+  $('allnearby').addEventListener('click',()=>{
+   selectedPierId='';
+   chosenDirections.clear();
+   triangleOrigins.clear();triangleChoices.clear();triangleResults.clear();
+   $('allnearby').hidden=true;
+   showPierSearch(false);
+   if(position){find();return;}
+   departureRequest?.abort();
+   departureRequest=null;
+   data=null;
+   showMarkers([]);
+   $('find').disabled=true;
+   $('find').textContent='↻ Oppdater ferjeavganger';
+   $('results').innerHTML='<div class="empty">Bruk «Min posisjon» eller velg et startpunkt på kartet.</div>';
+  });
   initMap();if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
 })();
 </script>

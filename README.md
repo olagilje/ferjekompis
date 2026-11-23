@@ -1,50 +1,59 @@
-# Ferjekompis – Entur-integrasjon, versjon 2 (test)
+# Ferjekompis v2
 
-Denne utgaven viderefører opprinnelig design fra prototypen. **Det finnes ingen oppdiktede ferjeavganger i denne versjonen.** Nettsiden henter avgangstider fra Entur Journey Planner v3 via en Netlify Function.
+Ferjekompis viser kommande ferjeavgangar frå Entur og reknar ut ei rettleiande vegtid til kaia. Appen er ei PWA som kan leggjast til på startskjermen på mobil.
 
-## Dette er implementert
-- GPS i iPhone/Safari på HTTPS, mobilkart, flere ferjekaier i nærheten.
-- Entur `stopPlacesByBbox` for søk etter ferjekaier i et geografisk område, filtrert på vanntransport, sortert etter luftlinjeavstand.
-- Entur `estimatedCalls` for faktiske rutetider, sanntidsflagg og innstillinger.
-- Kjøretid via OSRM **offentlig demoserver** (kun utvikling/testing). **Ikke produksjonsklar**, kapasitet, begrensninger og dekningsgrad kan variere.
-- Anbefalt avgang hvis kjøreruten kan beregnes, med 5/10/15/20 minutter margin. Forrige avgang man ikke rekker markeres grått med rød overstryking.
-- Manuelt tekstfilter på ferjekaier innenfor søkeområdet (ikke globalt sambandssøk).
-- Ingen simulering ved feil: Appen viser en feilmelding hvis ekte data ikke er tilgjengelige.
+## Dette kan appen
 
-## Kjente begrensninger — LES DETTE
-- **Integrasjonen er ikke kjørt mot Enturs server i dette utviklingsmiljøet** (nettverk er blokkert). GraphQL-oppsettet er basert på publisert API-dokumentasjon. Produksjonstest på Netlify gjenstår.
-- OSRM gir bare en veiledende rutetid for bil. Det kan velge feil ankomstpunkt, og det tar ikke hensyn til kø, vær, innsjekk, oppstillingsfelt, eller ferjeselskapets frister. Ingen avganger er garantert å kunne nås.
-- For biltransport må det senere verifiseres at avgangen er en bilferje (Enturs `water` inkluderer også passasjerbåter). **Ikke anta at «ANBEFALT» betyr at bilen kan tas med** i denne testutgaven.
-- Bussknappen finnes, men bussberegning er ikke implementert og viser en tydelig begrensning.
-- «Velg annet samband» filtrerer foreløpig bare nærliggende ferjekaier etter navn. Søket omfatter ikke hele Norge.
-- Kun et utvalg av nærmeste ferjekaier og kommende avganger vises. Ingen garantier om at alle aktuelle samband vises.
-- En tidlig avgang som ikke rekker kan fortsatt vises hvis avgangen er hentet fra Entur (75 min tilbake). Historiske avganger eldre enn dette vises ikke.
-- PWA må ha nettforbindelse for ferske data. Offline-cache er bare for appskallet.
+- Finne ferjer nær GPS-posisjonen eller eit valt punkt på kartet.
+- Søkje etter ei bestemt ferjekai i Entur og vise avgangar derfrå, også utan GPS.
+- Bytte kai/retning innanfor eit samband.
+- Vise registrerte samband med fleire kaier som eitt kort, med val av avreisekai og reisemål. Avgangane blir filtrerte etter stoppemønsteret til ferja i Entur.
+- Vise rutetid, sanntidsinformasjon når Entur har det, og kansellerte avgangar.
+- Rekne ut kva avgang som kan vere aktuell med vald sikkerheitsmargin (5 minutt som standard).
+- I automatisk nærvising ligg samband med over 90 minutt estimert køyretid under «Vis også …»; eit manuelt søk på kai viser alle funne samband direkte.
+- Opne Entur med bussreise til vald ferjekai; Entur-appen/nettsida handterer kollektivruta.
+- Hente avgangar frå ein Netlify Function, slik at Entur-nøkkelen ikkje trengst i nettlesaren.
 
-## Publiser på Netlify — enkleste oppsett
-1. Opprett en gratis Netlify-konto på https://app.netlify.com/.
-2. Pakk ut ZIP-filen. For at Functions skal distribueres korrekt, anbefales Netlify med et **GitHub-repository** for prosjektmappen. Last opp alle filene i prosjektmappen, inkludert `netlify.toml` og `netlify/functions/ferjer.mjs`.
-3. I Netlify: **Add new project → Import an existing project → GitHub**. Velg repository. Byggekommando kan stå tom, publiseringsmappe er `.`.
-4. Under **Site configuration → Environment variables**, legg gjerne til `ENTUR_CLIENT_NAME` med en entydig verdi, f.eks. `dittfirma-ferjekompis` (små bokstaver, ingen mellomrom). Standard er `ferjekompis-web` under test.
-5. Deploy. Åpne HTTPS-adressen på iPhone i Safari og tillat posisjon. Test på konkrete ferjekaier i Vestland mot https://entur.no og ferjeoperatørens informasjon.
-6. Safari: Del → Legg til på Hjem-skjerm.
+## Viktige avgrensingar
 
-## Lokalt utviklingsmiljø
-Vanlig `python -m http.server` kjører **ikke** Netlify Functions. Du trenger Node.js og Netlify CLI:
+- Avgangane kjem frå Entur Journey Planner v3. Appen viser berre linjer som ligg i den vedlikehaldne lista i `netlify/functions/road-ferries.json`. Samband som ikkje finst i lista kan derfor mangle.
+- Vegtid prøver Statens vegvesen sin Ruteplanleggar først når tilgang er sett opp, og fell tilbake til OSRM dersom tilgang manglar, Vegvesen svarar med feil, eller dagsgrensa er nådd. Appen tel rutekall felles på serversida og stoppar ved 2 500 per norsk kalenderdag. Teljaren brukar Netlify Blobs. Køyretida er rettleiande og tek ikkje høgde for kø, oppstilling eller innsjekkfristar.
+- Entur sine data kan vere ufullstendige eller endrast. Kontroller alltid avgangen og ferjeselskapet sine krav.
+- Filter for store og små ferjer er ikkje implementert; det krev ei påliteleg kjelde for ferjene sin kapasitet. Vegnummer og sorteringsprioritet seier ikkje kor stor båten er.
+- GPS-posisjonen blir sendt via Netlify-funksjonen for å finne kaier; vegberekninga sender posisjonen og kaia til Statens vegvesen dersom tilgang er sett opp, elles til OSRM. Appen lagrar ikkje posisjonen i ein brukarkonto.
+- Entur-lenka inneheld ID-en til den valde ferjekaia, men ikkje GPS-posisjonen. Entur kan bruke si eiga posisjonstilgang som startpunkt.
+- Nett trengst for ferske data. Service worker lagrar berre appskalet; kartfliser og avgangar er ikkje tilgjengelege offline.
 
-```
+## Netlify-oppsett
+
+Netlify byggjer frå rotmappa. `netlify.toml` peikar på `netlify/functions` og konfigurerer funksjonspakkinga. GitHub-kopling er den enklaste måten å publisere på.
+
+Set gjerne `ENTUR_CLIENT_NAME` som Netlify-miljøvariabel til ein identifikator i formatet `organisasjon-app`, med små bokstavar og bindestrek. Koden brukar `ferjekompis-web` dersom variabelen ikkje er sett. Entur krev at API-kall identifiserer klientappen.
+
+For Vegvesen-ruting: be Statens vegvesen om API-tilgang, og legg brukarnamnet og passordet inn i Netlify som hemmelege miljøvariablar `SVV_ROUTING_USERNAME` og `SVV_ROUTING_PASSWORD`. Appen brukar maksimalt 2 500 rutekall per norsk kalenderdag og går automatisk over til OSRM når dagsgrensa er nådd. Statens vegvesen skal oppgivast som kjelde når Vegvesen-data blir brukte. OSRM si offentlege demoteneste er meint for prototyping, så dette er ei reserveordning og ikkje ein garantert produksjonsteneste.
+
+## Lokal køyring
+
+Vanleg statisk filserver køyrer ikkje Netlify-funksjonane. Med Node.js og Netlify CLI:
+
+```sh
 npm install -g netlify-cli
 netlify dev
 ```
 
-Åpne adressen som Netlify CLI oppgir. Appen forutsetter `/ .netlify/functions/ferjer` (uten mellomrom). Et vanlig statisk filhotell vil ikke kunne kjøre backend-funksjonen.
+Opne adressa Netlify CLI viser. Appen kallar `/.netlify/functions/ferjer`.
 
-## Neste steg før praktisk bruk
-1. Live-test Entur-spørringene, og korriger eventuelle API/schema-ulikheter.
-2. Verifiser at funn er **bilferjer** (ikke passasjerbåter) med transportSubmode/linjedata.
-3. Bytt OSRM-demo med en driftssikker rutetjeneste og kontroller ankomstpunkt for bil.
-4. Håndter kø og innsjekkfrister, inkludert ferjespesifikke regler.
-5. Implementer bussreise med gangtid og Entur reiseplanlegger.
-6. Test ferjer og retninger, innstillinger, sanntid og sikkerhet før appen brukes til tidskritiske reiser.
+## Filer
 
-**Kilder:** https://developer.entur.no/docs/open-services/journey-planner og https://developer.entur.no/apis/graphql/journey-planner/query/stopPlacesByBbox
+- `index.html` — grensesnitt, kart, søk og anbefalingsvising.
+- `netlify/functions/ferjer.mjs` — Entur-, Statens vegvesen- og OSRM-kall.
+- `netlify/functions/road-ferries.json` — godkjende ferjelinjer og sorteringsprioritet.
+- `sw.js`, `manifest.webmanifest`, `icon.svg` — PWA-oppsett.
+
+## Referansar
+
+- [Entur Journey Planner](https://developer.entur.no/docs/open-services/journey-planner)
+- [Entur stopPlacesByBbox](https://developer.entur.no/apis/graphql/journey-planner/query/stopPlacesByBbox)
+- [Netlify Functions](https://docs.netlify.com/build/functions/overview/)
+- [Statens vegvesen: Ruteplan API](https://www.vegvesen.no/ws/no/vegvesen/ruteplan/routingservice_v3_0/open/routingService/openapi/index.html)
+- [Dataportalen: tilgang og dagsgrense for Ruteplanleggar](https://dataut.vegvesen.no/dataservice/ruteplanlegger-for-bil-og-tungbil)
