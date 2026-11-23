@@ -39,6 +39,9 @@
     .ferry.recommended{border-radius:15px;padding:13px;margin-top:9px}
     .connection-card{margin-top:16px}
     .connection-card + .connection-card{border-top:1px solid var(--line);padding-top:16px}
+    .results-actions{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+    .refreshbtn{background:var(--pale);color:var(--green);border-radius:999px;padding:6px 10px;min-height:36px;font-size:12px;font-weight:700}
+    .refreshbtn:disabled{opacity:.6;cursor:default}
     .ferry.missed{background:#f6f7f6}
     .ferry > summary{list-style:none;cursor:pointer;padding:6px 10px;min-height:42px;box-sizing:border-box;border-radius:9px}
     .ferry > summary::-webkit-details-marker{display:none}
@@ -83,7 +86,6 @@
       <span class="sub">Sikkerhetsmargin før avgang</span>
       <select id="buffer"><option value="5" selected>5 minutter</option><option value="10">10 minutter</option><option value="15">15 minutter</option><option value="20">20 minutter</option></select>
     </div>
-    <button class="primary" id="find">Finn ferjer i nærheten</button>
   </section>
 
   <section class="card">
@@ -93,7 +95,8 @@
   </section>
 
   <section class="card">
-    <div class="sectionhead"><h2>Ferjer du kan rekke</h2><button class="linkbtn" id="manualtoggle">Velg annet samband</button></div>
+    <div class="sectionhead"><h2>Ferjer du kan rekke</h2></div>
+    <div class="results-actions"><button class="linkbtn" id="manualtoggle">Velg annet samband</button><button type="button" class="refreshbtn" id="find" disabled>↻ Oppdater ferjeavganger</button></div>
     <div id="results"><div class="empty">Bruk «Min posisjon» eller velg et startpunkt på kartet.</div></div>
     <div id="manual" style="display:none">
       <div class="sub" style="margin-top:12px">Søk etter ferjekai eller samband for å overstyre automatisk forslag.</div>
@@ -111,6 +114,7 @@
   let position=null,mode='car',map=null,marker=null,markers=[],data=null,manualChoice='';
   let pickingLocation=false, locationRequest=0;
   const chosenDirections=new Map();
+  let departureRequest;
   const toast=msg=>{const e=$('toast');e.textContent=msg;e.style.display='block';clearTimeout(window.__toastTimer);window.__toastTimer=setTimeout(()=>e.style.display='none',4300);};
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const fmt=iso=>new Date(iso).toLocaleTimeString('no-NO',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Oslo'});
@@ -145,7 +149,8 @@
     map.setView([lat,lon],fromMap?map.getZoom():11);
    }
    data=null;
-   $('results').innerHTML='<div class="empty">Startpunktet er valgt. Trykk «Finn ferjer i nærheten».</div>';
+   if(mode==='car')find();
+   else $('results').innerHTML='<div class="empty">Velg Bil for å hente ferjeavganger fra startpunktet.</div>';
   }
   function chooseMapPoint({lat,lng}){
    if(lat<57||lat>72||lng<4||lng>32){toast('Velg et startpunkt i Norge.');return;}
@@ -230,11 +235,15 @@
   }
   async function find(){if(!position){toast('Bruk «Min posisjon» eller velg et startpunkt på kartet.');return;}if(mode==='bus'){toast('Bussruter er ikke implementert ennå. Velg Bil for beregning.');return;}
    const origin=position;
+   departureRequest?.abort();
+   const request=new AbortController();
+   departureRequest=request;
+   data=null;
    $('find').disabled=true;$('find').textContent='Henter rutetider …';$('results').innerHTML='<div class="empty">Henter faktiske ferjekaier og avganger fra Entur …</div>';
    try{const params=new URLSearchParams({lat:origin.lat,lon:origin.lon});if(manualChoice)params.set('search',manualChoice);
-    const response=await fetch('/.netlify/functions/ferjer?'+params,{cache:'no-store'});const json=await response.json();if(origin!==position)return;if(!response.ok)throw Error(json.error||'Forespørselen feilet');data=json;render();if(json.message)toast(json.message);
-   }catch(e){if(origin!==position)return;data=null;$('results').innerHTML='<div class="empty">Kunne ikke hente ekte data. '+esc(e.message)+'<p>Appen må publiseres på Netlify eller kjøres med Netlify Dev. Ingen eksempelavganger vises.</p></div>';}
-   finally{$('find').disabled=false;$('find').textContent='Oppdater ferjeavganger';}
+    const response=await fetch('/.netlify/functions/ferjer?'+params,{cache:'no-store',signal:request.signal});const json=await response.json();if(request!==departureRequest||origin!==position)return;if(!response.ok)throw Error(json.error||'Forespørselen feilet');data=json;render();if(json.message)toast(json.message);
+   }catch(e){if(request!==departureRequest||origin!==position)return;data=null;$('results').innerHTML='<div class="empty">Kunne ikke hente ekte data. '+esc(e.message)+'<p>Appen må publiseres på Netlify eller kjøres med Netlify Dev. Ingen eksempelavganger vises.</p></div>';}
+   finally{if(request===departureRequest){departureRequest=null;$('find').disabled=mode!=='car';$('find').textContent='↻ Oppdater ferjeavganger';}}
   }
   $('locate').addEventListener('click',locate);$('find').addEventListener('click',find);$('buffer').addEventListener('change',render);
   $('results').addEventListener('click',async event=>{
@@ -266,7 +275,16 @@
   });
   $('picklocation').addEventListener('click',()=>setPickingLocation(!pickingLocation));
   $('usemapcenter').addEventListener('click',()=>chooseMapPoint(map.getCenter()));
-  document.querySelectorAll('[data-mode]').forEach(btn=>btn.addEventListener('click',()=>{mode=btn.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===btn));if(mode==='bus')toast('Buss kommer i neste fase; visningen gir ikke buss-anbefalinger.');render();}));
+  document.querySelectorAll('[data-mode]').forEach(btn=>btn.addEventListener('click',()=>{
+   mode=btn.dataset.mode;
+   document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===btn));
+   $('find').disabled=!position||mode==='bus'||!!departureRequest;
+   if(mode==='bus'){
+    toast('Buss kommer i neste fase; visningen gir ikke buss-anbefalinger.');
+    $('results').innerHTML='<div class="empty">Buss er ikke koblet til Entur ennå. Velg Bil for å se ferjeavganger og kjøreberegning.</div>';
+   }else if(position&&!data&&!departureRequest)find();
+   else render();
+  }));
   $('manualtoggle').addEventListener('click',()=>{$('manual').style.display=$('manual').style.display==='none'?'block':'none';});
   $('manualadd').addEventListener('click',()=>{manualChoice=$('manualname').value.trim();$('manual').style.display='none';find();});
   initMap();if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
