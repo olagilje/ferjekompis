@@ -91,6 +91,23 @@ async function route(lat,lon,stop){
  const url=`https://router.project-osrm.org/route/v1/driving/${lon},${lat};${stop.longitude},${stop.latitude}?overview=false`;
  try{const r=await fetch(url,{signal:AbortSignal.timeout(7000)});if(!r.ok)return null;const j=await r.json();const route=j.routes?.[0];return j.code==='Ok'&&route&&Number.isFinite(route.duration)?{minutes:Math.ceil(route.duration/60),distanceKm:Math.round(route.distance/100)/10,source:'OSRM-test'}:null;}catch{return null;}
 }
+async function searchPiers(text){
+ const params=new URLSearchParams({q:text,stopPlaceTypes:'ferryStop,harbourPort',limit:'8'});
+ const response=await fetch('https://api.entur.io/geocoder/v3/autocomplete?'+params,{headers:HEADERS,signal:AbortSignal.timeout(7000)});
+ if(!response.ok)throw Error('Kunne ikke søke etter ferjekaier.');
+ const {features=[]}=await response.json();
+ return features.flatMap(({properties:p})=>p.id?.startsWith('NSR:StopPlace:')&&p.names?.display
+  ?[{id:p.id,label:p.names.display}]:[]);
+}
+async function selectedPier(id,origin){
+ const start=new Date(Date.now()-75*60000).toISOString();
+ const {stopPlaces}=await graphql(Q_CALLS,{ids:[id],start});
+ const stop=stopPlaces?.[0];
+ if(!stop)return null;
+ return {id:stop.id,name:stop.name,lat:stop.latitude,lon:stop.longitude,
+  straightKm:origin?Math.round(haversine(origin.lat,origin.lon,stop.latitude,stop.longitude)*10)/10:null,
+  route:origin?await route(origin.lat,origin.lon,stop):null,departures:departures(stop.estimatedCalls)};
+}
 async function otherDirection(lat,lon,lineId,fromStopId,destination){
  const {line}=await graphql(Q_LINE_STOPS,{id:lineId});
  const candidates=new Map();
@@ -118,17 +135,29 @@ async function otherDirection(lat,lon,lineId,fromStopId,destination){
  matches.sort((a,b)=>haversine(lat,lon,a.stop.latitude,a.stop.longitude)-haversine(lat,lon,b.stop.latitude,b.stop.longitude));
  if(!matches.length)return [];
  const {stop,calls}=matches[0];
- return [{id:stop.id,name:stop.name,lat:stop.latitude,lon:stop.longitude,straightKm:Math.round(haversine(lat,lon,stop.latitude,stop.longitude)*10)/10,route:await route(lat,lon,stop),departures:calls}];
+ const hasOrigin=Number.isFinite(lat)&&Number.isFinite(lon);
+ return [{id:stop.id,name:stop.name,lat:stop.latitude,lon:stop.longitude,straightKm:hasOrigin?Math.round(haversine(lat,lon,stop.latitude,stop.longitude)*10)/10:null,route:hasOrigin?await route(lat,lon,stop):null,departures:calls}];
 }
 export async function handler(event){
  try{
   const p=event.queryStringParameters||{};const lat=Number(p.lat),lon=Number(p.lon);
-  if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat<57||lat>72||lon<4||lon>32)return reply(400,{error:'Ugyldig norsk GPS-posisjon.'});
+  if(typeof p.pierSearch==='string'){
+   const text=p.pierSearch.trim().slice(0,75);
+   return reply(200,{piers:text.length>=2?await searchPiers(text):[]});
+  }
+  if(p.stopId){
+   if(!/^NSR:StopPlace:\d+$/.test(p.stopId))return reply(400,{error:'Ugyldig ferjekai.'});
+   const validOrigin=Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=57&&lat<=72&&lon>=4&&lon<=32;
+   const stop=await selectedPier(p.stopId,validOrigin?{lat,lon}:null);
+   return reply(200,{stops:stop?[stop]:[],fetchedAt:new Date().toISOString()});
+  }
+  const validOrigin=Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=57&&lat<=72&&lon>=4&&lon<=32;
   if(p.lineId){
    if(!Object.hasOwn(roadFerries,p.lineId)||!p.fromStopId?.startsWith('NSR:StopPlace:'))return reply(400,{error:'Ugyldig ferjesamband eller avreisekai.'});
-   const stops=await otherDirection(lat,lon,p.lineId,p.fromStopId,(p.to||'').slice(0,100));
+   const stops=await otherDirection(validOrigin?lat:NaN,validOrigin?lon:NaN,p.lineId,p.fromStopId,(p.to||'').slice(0,100));
    return reply(200,{stops,...(!stops.length?{message:'Fant ingen avganger fra den andre kaia i Enturs tidsvindu.'}:{})});
   }
+  if(!validOrigin)return reply(400,{error:'Ugyldig norsk GPS-posisjon.'});
   const search=(p.search||'').trim().slice(0,75);
   const destination=(p.destination||'').trim().slice(0,75);
   if(destination)return reply(200,await journey(lat,lon,destination));

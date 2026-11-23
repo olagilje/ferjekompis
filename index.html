@@ -96,12 +96,13 @@
 
   <section class="card">
     <div class="sectionhead"><h2>Ferjer du kan rekke</h2></div>
-    <div class="results-actions"><button class="linkbtn" id="manualtoggle">Velg annet samband</button><button type="button" class="refreshbtn" id="find" disabled>↻ Oppdater ferjeavganger</button></div>
-    <div id="results"><div class="empty">Bruk «Min posisjon» eller velg et startpunkt på kartet.</div></div>
-    <div id="manual" style="display:none">
-      <div class="sub" style="margin-top:12px">Søk etter ferjekai eller samband for å overstyre automatisk forslag.</div>
-      <div class="manual"><input id="manualname" placeholder="F.eks. Halhjem, Sandvikvåg"><button id="manualadd">Velg</button></div>
+    <div class="results-actions"><button class="linkbtn" id="manualtoggle" aria-expanded="false" aria-controls="manual">Søk etter ferjekai</button><button type="button" class="refreshbtn" id="find" disabled>↻ Oppdater ferjeavganger</button></div>
+    <button type="button" class="linkbtn" id="allnearby" hidden>Vis alle i nærheten</button>
+    <div id="manual" hidden>
+      <form class="manual" id="pierform"><input type="search" id="manualname" aria-label="Navn på ferjekai" placeholder="F.eks. Halhjem eller Mortavika" required minlength="2" maxlength="75"><button type="submit">Søk</button></form>
+      <div id="piermatches" aria-live="polite"></div>
     </div>
+    <div id="results"><div class="empty">Bruk «Min posisjon» eller velg et startpunkt på kartet.</div></div>
     <div class="notice" id="warning"><b>Testversjon:</b> Rutetider hentes fra Entur. Kjøretid hentes fra en offentlig OSRM-testserver og er bare veiledende. Kontroller alltid ferjeavgangen og møt opp i god tid. Biltransport / innsjekk er ikke verifisert.</div>
   </section>
   <footer>Ferjekompis · Bygges steg for steg i Norge 🇳🇴</footer>
@@ -111,7 +112,8 @@
 <script>
 (() => {
   const $=id=>document.getElementById(id);
-  let position=null,mode='car',map=null,marker=null,markers=[],data=null,manualChoice='';
+  let position=null,mode='car',map=null,marker=null,markers=[],data=null,selectedPierId='';
+  let pierSearchRequest;
   let pickingLocation=false, locationRequest=0;
   const chosenDirections=new Map();
   let departureRequest;
@@ -172,7 +174,7 @@
     toast('Klarte ikke å hente posisjonen. Velg startpunkt på kartet.');
    },{enableHighAccuracy:true,timeout:15000,maximumAge:30000});
   }
-  function showMarkers(stops){if(!map)return;markers.forEach(m=>map.removeLayer(m));markers=[];for(const s of stops){const m=L.marker([s.lat,s.lon]).addTo(map).bindPopup(esc(s.name));markers.push(m);}if(position&&stops.length){map.fitBounds(L.latLngBounds([[position.lat,position.lon],...stops.map(s=>[s.lat,s.lon])]),{padding:[25,25],maxZoom:12});}}
+  function showMarkers(stops){if(!map)return;markers.forEach(m=>map.removeLayer(m));markers=[];for(const s of stops){const m=L.marker([s.lat,s.lon]).addTo(map).bindPopup(esc(s.name));markers.push(m);}if(stops.length){const points=stops.map(s=>[s.lat,s.lon]);if(position)points.push([position.lat,position.lon]);map.fitBounds(L.latLngBounds(points),{padding:[25,25],maxZoom:12});}}
   function calculate(stop){const margin=Number($('buffer').value),now=Date.now();const drive=stop.route?.minutes;
    const sorted=stop.departures.map(d=>({...d,when:new Date(d.expected).getTime()})).filter(d=>Number.isFinite(d.when)).sort((a,b)=>a.when-b.when);
    const relevant=sorted.filter(d=>d.when>now-75*60000);
@@ -213,7 +215,7 @@
     const c=calculate(s);const best=c.recommended;const latest=best&&c.drive!=null?new Date(best.when-(c.drive+c.margin)*60000):null;
     const noRoute=c.drive==null;
     const next=s.departures.find(d=>!d.cancelled&&Date.parse(d.expected)>=c.now);
-    return `<div class="connection-card"><div class="sectionhead" style="margin-bottom:2px"><h2>${esc([s.samband.road,s.samband.name].filter(Boolean).join(' '))}</h2><span class="sub">${s.straightKm} km luftlinje</span></div>
+    return `<div class="connection-card"><div class="sectionhead" style="margin-bottom:2px"><h2>${esc([s.samband.road,s.samband.name].filter(Boolean).join(' '))}</h2>${s.straightKm==null?'':`<span class="sub">${s.straightKm} km luftlinje</span>`}</div>
       <div class="sectionhead" style="margin-bottom:2px">
        <div class="sub" aria-live="polite">Fra ${esc(s.name)}${s.destination?' til '+esc(s.destination):''} · ${next?'Neste avgang kl. '+fmt(next.expected):'Ingen kommende avgang funnet'}</div>
        <button type="button" class="linkbtn" data-line="${esc(lineId)}" data-direction="${esc(nextDirection?.key||'')}" data-stop="${esc(s.id)}" data-to="${esc(s.destination)}" aria-label="${nextDirection?'Bytt retning til fra '+esc(nextDirection.name)+(nextDirection.destination?' til '+esc(nextDirection.destination):''):'Finn avgang fra den andre kaia'}">⇄ Bytt</button>
@@ -233,14 +235,14 @@
    }).join('');
    $('mapstatus').textContent='Ferjekaier fra Entur';showMarkers(data.stops);
   }
-  async function find(){if(!position){toast('Bruk «Min posisjon» eller velg et startpunkt på kartet.');return;}if(mode==='bus'){toast('Bussruter er ikke implementert ennå. Velg Bil for beregning.');return;}
+  async function find(){if(!position&&!selectedPierId){toast('Bruk «Min posisjon» eller velg et startpunkt på kartet.');return;}if(mode==='bus'){toast('Bussruter er ikke implementert ennå. Velg Bil for beregning.');return;}
    const origin=position;
    departureRequest?.abort();
    const request=new AbortController();
    departureRequest=request;
    data=null;
    $('find').disabled=true;$('find').textContent='Henter rutetider …';$('results').innerHTML='<div class="empty">Henter faktiske ferjekaier og avganger fra Entur …</div>';
-   try{const params=new URLSearchParams({lat:origin.lat,lon:origin.lon});if(manualChoice)params.set('search',manualChoice);
+   try{const params=new URLSearchParams(origin||{});if(selectedPierId)params.set('stopId',selectedPierId);
     const response=await fetch('/.netlify/functions/ferjer?'+params,{cache:'no-store',signal:request.signal});const json=await response.json();if(request!==departureRequest||origin!==position)return;if(!response.ok)throw Error(json.error||'Forespørselen feilet');data=json;render();if(json.message)toast(json.message);
    }catch(e){if(request!==departureRequest||origin!==position)return;data=null;$('results').innerHTML='<div class="empty">Kunne ikke hente ekte data. '+esc(e.message)+'<p>Appen må publiseres på Netlify eller kjøres med Netlify Dev. Ingen eksempelavganger vises.</p></div>';}
    finally{if(request===departureRequest){departureRequest=null;$('find').disabled=mode!=='car';$('find').textContent='↻ Oppdater ferjeavganger';}}
@@ -253,7 +255,7 @@
    if(direction)chosenDirections.set(line,direction);
    else{
     const current=data;
-    const params=new URLSearchParams({lat:position.lat,lon:position.lon,lineId:line,fromStopId:stop,to});
+    const params=new URLSearchParams({...position,lineId:line,fromStopId:stop,to});
     button.disabled=true;
     button.textContent='Henter …';
     try{
@@ -278,15 +280,59 @@
   document.querySelectorAll('[data-mode]').forEach(btn=>btn.addEventListener('click',()=>{
    mode=btn.dataset.mode;
    document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===btn));
-   $('find').disabled=!position||mode==='bus'||!!departureRequest;
+   $('find').disabled=(!position&&!selectedPierId)||mode==='bus'||!!departureRequest;
    if(mode==='bus'){
     toast('Buss kommer i neste fase; visningen gir ikke buss-anbefalinger.');
     $('results').innerHTML='<div class="empty">Buss er ikke koblet til Entur ennå. Velg Bil for å se ferjeavganger og kjøreberegning.</div>';
-   }else if(position&&!data&&!departureRequest)find();
+   }else if((position||selectedPierId)&&!data&&!departureRequest)find();
    else render();
   }));
-  $('manualtoggle').addEventListener('click',()=>{$('manual').style.display=$('manual').style.display==='none'?'block':'none';});
-  $('manualadd').addEventListener('click',()=>{manualChoice=$('manualname').value.trim();$('manual').style.display='none';find();});
+  function showPierSearch(open){
+   $('manual').hidden=!open;
+   $('manualtoggle').setAttribute('aria-expanded',String(open));
+   if(open)$('manualname').focus();
+  }
+  $('manualtoggle').addEventListener('click',()=>showPierSearch($('manual').hidden));
+  $('pierform').addEventListener('submit',async event=>{
+   event.preventDefault();
+   const text=$('manualname').value.trim();
+   if(text.length<2)return;
+   pierSearchRequest?.abort();
+   const request=new AbortController();
+   pierSearchRequest=request;
+   const matches=$('piermatches');
+   matches.textContent='Søker etter ferjekaier …';
+   try{
+    const response=await fetch('/.netlify/functions/ferjer?'+new URLSearchParams({pierSearch:text}),{signal:request.signal});
+    if(!response.ok)throw Error('Kunne ikke søke etter ferjekaier. Prøv igjen.');
+    const {piers}=await response.json();
+    if(request!==pierSearchRequest)return;
+    matches.innerHTML=piers.length?piers.map(pier=>`<div><button type="button" class="linkbtn" data-pier="${esc(pier.id)}">${esc(pier.label)}</button></div>`).join(''):'Fant ingen ferjekaier. Prøv et annet navn.';
+   }catch(error){if(request===pierSearchRequest&&!request.signal.aborted)matches.textContent=error.message;}
+  });
+  $('piermatches').addEventListener('click',event=>{
+   const button=event.target.closest('button[data-pier]');
+   if(!button)return;
+   selectedPierId=button.dataset.pier;
+   chosenDirections.clear();
+   $('allnearby').hidden=false;
+   showPierSearch(false);
+   find();
+  });
+  $('allnearby').addEventListener('click',()=>{
+   selectedPierId='';
+   chosenDirections.clear();
+   $('allnearby').hidden=true;
+   showPierSearch(false);
+   if(position){find();return;}
+   departureRequest?.abort();
+   departureRequest=null;
+   data=null;
+   showMarkers([]);
+   $('find').disabled=true;
+   $('find').textContent='↻ Oppdater ferjeavganger';
+   $('results').innerHTML='<div class="empty">Bruk «Min posisjon» eller velg et startpunkt på kartet.</div>';
+  });
   initMap();if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
 })();
 </script>
