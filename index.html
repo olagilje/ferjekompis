@@ -101,6 +101,7 @@
   const $=id=>document.getElementById(id);
   let position=null,mode='car',map=null,marker=null,markers=[],data=null,manualChoice='';
   let pickingLocation=false, locationRequest=0;
+  const chosenDirections=new Map();
   const toast=msg=>{const e=$('toast');e.textContent=msg;e.style.display='block';clearTimeout(window.__toastTimer);window.__toastTimer=setTimeout(()=>e.style.display='none',4300);};
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const fmt=iso=>new Date(iso).toLocaleTimeString('no-NO',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Oslo'});
@@ -123,6 +124,7 @@
   }
   function setLocation(lat,lon,fromMap=false){
    position={lat,lon};
+   chosenDirections.clear();
    setPickingLocation(false);
    const label=fromMap?'Valgt på kartet':'Din posisjon';
    $('place').textContent=label;
@@ -178,16 +180,30 @@
      connections.get(key).departures.push(departure);
     }
    }
-   return [...connections.values()].sort((a,b)=>a.samband.priority-b.samband.priority||a.straightKm-b.straightKm||a.samband.name.localeCompare(b.samband.name,'nb'));
+   const byLine=new Map();
+   for(const [key,direction] of connections){
+    const lineId=direction.departures[0].lineId;
+    if(!byLine.has(lineId))byLine.set(lineId,[]);
+    byLine.get(lineId).push({key,...direction});
+   }
+   const cards=[...byLine].map(([lineId,directions])=>{
+    directions.sort((a,b)=>a.straightKm-b.straightKm||a.name.localeCompare(b.name,'nb')||a.destination.localeCompare(b.destination,'nb'));
+    const selected=Math.max(0,directions.findIndex(d=>d.key===chosenDirections.get(lineId)));
+    return {lineId,nearest:directions[0],direction:directions[selected],next:directions.length>1?directions[(selected+1)%directions.length]:null};
+   });
+   return cards.sort((a,b)=>a.nearest.samband.priority-b.nearest.samband.priority||a.nearest.straightKm-b.nearest.straightKm||a.nearest.samband.name.localeCompare(b.nearest.samband.name,'nb'));
   }
   function render(){if(!data)return;if(mode==='bus'){$('results').innerHTML='<div class="empty">Buss er ikke koblet til Entur ennå. Velg Bil for å se ferjeavganger og kjøreberegning.</div>';return;}
    const list=groupConnections(data.stops);
-   $('results').innerHTML=`<div class="sub">Entur-data hentet ${fmt(data.fetchedAt)} · ${list.length} ferjeruter</div>`+(!list.length?'<div class="empty">Ingen avganger funnet for europaveg-, riksveg- eller fylkesvegferjer i søkeområdet.</div>':'')+list.map(s=>{
+   $('results').innerHTML=`<div class="sub">Entur-data hentet ${fmt(data.fetchedAt)} · ${list.length} ferjesamband</div>`+(!list.length?'<div class="empty">Ingen avganger funnet for europaveg-, riksveg- eller fylkesvegferjer i søkeområdet.</div>':'')+list.map(({lineId,direction:s,next:nextDirection})=>{
     const c=calculate(s);const best=c.recommended;const latest=best&&c.drive!=null?new Date(best.when-(c.drive+c.margin)*60000):null;
     const noRoute=c.drive==null;
     const next=s.departures.find(d=>!d.cancelled&&Date.parse(d.expected)>=c.now);
     return `<div style="margin-top:16px"><div class="sectionhead" style="margin-bottom:2px"><h2>${esc([s.samband.road,s.samband.name].filter(Boolean).join(' '))}</h2><span class="sub">${s.straightKm} km luftlinje</span></div>
-      <div class="sub">Fra ${esc(s.name)}${s.destination?' til '+esc(s.destination):''} · ${next?'Neste avgang kl. '+fmt(next.expected):'Ingen kommende avgang funnet'}</div>
+      <div class="sectionhead" style="margin-bottom:2px">
+       <div class="sub" aria-live="polite">Fra ${esc(s.name)}${s.destination?' til '+esc(s.destination):''} · ${next?'Neste avgang kl. '+fmt(next.expected):'Ingen kommende avgang funnet'}</div>
+       ${nextDirection?`<button type="button" class="linkbtn" data-line="${esc(lineId)}" data-direction="${esc(nextDirection.key)}" aria-label="Bytt retning til fra ${esc(nextDirection.name)}${nextDirection.destination?' til '+esc(nextDirection.destination):''}">⇄ Bytt</button>`:''}
+      </div>
       <div class="sub">${noRoute?'Kjøretid ikke tilgjengelig — ingen avgang kan anbefales':`Estimert kjøring ${c.drive} min · ${s.route.distanceKm} km vei · sikkerhetsmargin ${c.margin} min`}</div>
       ${latest?`<div class="notice" style="background:#e9f5ee;color:#147d55;border-color:#b8ddc7"><b>Reis senest kl. ${fmt(latest)}</b> for ferja kl. ${fmt(best.expected)}. ${Date.now()>latest.getTime()?'Avreisefristen er passert.':''}</div>`:''}
       ${!c.items.length?'<div class="empty">Ingen avganger funnet i tidsvinduet (Entur).</div>':''}
@@ -206,6 +222,13 @@
    finally{$('find').disabled=false;$('find').textContent='Oppdater ferjeavganger';}
   }
   $('locate').addEventListener('click',locate);$('find').addEventListener('click',find);$('buffer').addEventListener('change',render);
+  $('results').addEventListener('click',event=>{
+   const button=event.target.closest('button[data-direction]');
+   if(!button)return;
+   chosenDirections.set(button.dataset.line,button.dataset.direction);
+   render();
+   $('results').querySelector(`button[data-line="${CSS.escape(button.dataset.line)}"]`)?.focus();
+  });
   $('picklocation').addEventListener('click',()=>setPickingLocation(!pickingLocation));
   $('usemapcenter').addEventListener('click',()=>chooseMapPoint(map.getCenter()));
   document.querySelectorAll('[data-mode]').forEach(btn=>btn.addEventListener('click',()=>{mode=btn.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===btn));if(mode==='bus')toast('Buss kommer i neste fase; visningen gir ikke buss-anbefalinger.');render();}));
