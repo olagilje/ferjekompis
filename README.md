@@ -9,7 +9,7 @@ Ferjekompis viser kommande ferjeavgangar frå Entur og reknar ut ei rettleiande 
 - Bytte kai/retning innanfor eit samband.
 - Vise rutetid, sanntidsinformasjon når Entur har det, og kansellerte avgangar.
 - Rekne ut kva avgang som kan vere aktuell med vald sikkerheitsmargin (5 minutt som standard).
-- Gøyme samband med over 90 minutt estimert køyretid under «Vis også …».
+- Vise alle funne samband samtidig, også når køyretida er lang.
 - Hente avgangar frå ein Netlify Function, slik at Entur-nøkkelen ikkje trengst i nettlesaren.
 
 ## Viktige avgrensingar
