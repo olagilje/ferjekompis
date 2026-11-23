@@ -111,16 +111,14 @@ async function nearbyPlace(lat,lon){
  const p=place?.properties;
  return p?.name||p?.locality||'';
 }
-async function selectedPier(id,origin,debug=false){
+async function selectedPier(id,origin){
  const start=new Date(Date.now()-75*60000).toISOString();
  const {stopPlaces}=await graphql(Q_CALLS,{ids:[id],start,filters:FERRY_FILTERS});
  const stop=stopPlaces?.[0];
  if(!stop)return null;
- const rawCalls=stop.estimatedCalls||[];
  return {id:stop.id,name:stop.name,lat:stop.latitude,lon:stop.longitude,
   straightKm:origin?Math.round(haversine(origin.lat,origin.lon,stop.latitude,stop.longitude)*10)/10:null,
-  route:origin?await route(origin.lat,origin.lon,stop):null,departures:departures(rawCalls),
-  ...(debug?{debugRawCallCount:rawCalls.length,debugCalls:rawCalls.map(call=>({aimed:call.aimedDepartureTime,expected:call.expectedDepartureTime,forBoarding:call.forBoarding,cancelled:call.cancellation,lineId:call.serviceJourney?.line?.id,lineName:call.serviceJourney?.line?.name,mode:call.serviceJourney?.line?.transportMode,listedAsRoadFerry:Object.hasOwn(roadFerries,call.serviceJourney?.line?.id||'')}))}:{})};
+  route:origin?await route(origin.lat,origin.lon,stop):null,departures:departures(stop.estimatedCalls)};
 }
 async function triangleDestination(lat,lon,lineId,fromName,to){
  const {line}=await graphql(Q_LINE_STOPS,{id:lineId});
@@ -189,7 +187,7 @@ export async function handler(event){
   if(p.stopId){
    if(!/^NSR:StopPlace:\d+$/.test(p.stopId))return reply(400,{error:'Ugyldig ferjekai.'});
    const validOrigin=Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=57&&lat<=72&&lon>=4&&lon<=32;
-   const stop=await selectedPier(p.stopId,validOrigin?{lat,lon}:null,p.debug==='1');
+   const stop=await selectedPier(p.stopId,validOrigin?{lat,lon}:null);
    return reply(200,{stops:stop?[stop]:[],fetchedAt:new Date().toISOString()});
   }
   if(p.triangleTo){
