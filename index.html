@@ -231,9 +231,12 @@
      const originDirections=connection.directions.filter(d=>d.id===origin.id);
      const nextTime=d=>d.departures.map(call=>Date.parse(call.expected)).filter(time=>time>=Date.now()).sort((a,b)=>a-b)[0]??Infinity;
      const defaultDirection=[...originDirections].sort((a,b)=>nextTime(a)-nextTime(b))[0]||origin;
-     destination=triangleChoices.get(lineId)||defaultDirection.destination;
+     const possibleTargets=origin.samband.terminals.filter(name=>normalizeTerminal(name)!==normalizeTerminal(origin.name));
+     const scheduledDestination=normalizeTerminal(defaultDirection.destination);
+     const defaultTarget=possibleTargets.find(name=>scheduledDestination.includes(normalizeTerminal(name)))||possibleTargets[0]||defaultDirection.destination;
+     destination=triangleChoices.get(lineId)||defaultTarget;
      const cached=triangleResults.get(JSON.stringify([lineId,origin.id,destination]));
-     const initialCalls=normalizeTerminal(destination)===normalizeTerminal(defaultDirection.destination)?defaultDirection.departures:[];
+     const initialCalls=scheduledDestination.includes(normalizeTerminal(destination))?defaultDirection.departures:[];
      s={...origin,...cached,samband:origin.samband,destination,departures:cached?.departures||initialCalls};
     }
     const targets=triangle?s.samband.terminals.filter(name=>normalizeTerminal(name)!==normalizeTerminal(s.name)):[];
