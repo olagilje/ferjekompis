@@ -211,6 +211,10 @@
    });
    return cards.sort((a,b)=>a.nearest.samband.priority-b.nearest.samband.priority||a.nearest.straightKm-b.nearest.straightKm||a.nearest.samband.name.localeCompare(b.nearest.samband.name,'nb'));
   }
+  function enturBusLink(stop){
+   const params=new URLSearchParams({stopId:stop.id,transportModes:'bus'});
+   return `<a class="entur-link" href="https://entur.no/travel-result?${params}" target="_blank" rel="noopener noreferrer">Finn buss til ${esc(stop.name)} i Entur ↗</a>`;
+  }
   function render(){if(!data)return;
    const list=groupConnections(data.stops);
    const automaticView=!selectedPierId;
@@ -259,7 +263,7 @@
        const status=d.cancelled?'Innstilt':!isMiss&&(noRoute||!d.carFerry)?'Uavklart':'';
        return `<details class="ferry ${isMiss?'missed':''}">
         <summary class="ferrytop">${timing}${status?`<span class="state">${status}</span>`:''}</summary>
-       <div class="departure-info">${label}${details}</div></details>`;}).join('')}${c.items.length?'</details>':''}<a class="entur-link" href="https://entur.no/travel-result?${new URLSearchParams({stopId:s.id,transportModes:'bus'})}" target="_blank" rel="noopener noreferrer">Finn buss til ${esc(s.name)} i Entur ↗</a></div>`;
+       <div class="departure-info">${label}${details}</div></details>`;}).join('')}${c.items.length?`${enturBusLink(s)}</details>`:enturBusLink(s)}</div>`;
    }).join('');
    $('results').innerHTML=`<div class="sub">Entur-data hentet ${fmt(data.fetchedAt)} · ${list.length} ferjesamband</div>`+(!list.length?'<div class="empty">Ingen avganger funnet for europaveg-, riksveg- eller fylkesvegferjer i søkeområdet.</div>':'')+renderCards(nearby)+(farther.length?`<details class="farther-connections"><summary>Vis også ${farther.length} samband med over 90 min køyretid</summary>${renderCards(farther)}</details>`:'');
    $('mapstatus').textContent='Ferjekaier fra Entur';showMarkers(data.stops);
