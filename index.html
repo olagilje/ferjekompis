@@ -37,6 +37,8 @@
     .ferry{border:1px solid var(--line);border-radius:15px;padding:13px;margin-top:9px}
     .ferry.recommended{background:var(--pale);border-color:#b8ddc7}
     .ferry.missed{opacity:.48;background:#f6f7f6}
+    .ferry.missed.compact{padding:6px 10px;margin-top:6px;border-radius:10px;line-height:1.25}
+    .ferry.missed.compact .time{font-size:16px;letter-spacing:0}
     .ferrytop{display:flex;align-items:center;justify-content:space-between;gap:10px}
     .time{font-size:25px;font-weight:800;letter-spacing:-1px}.ferry.missed .time{text-decoration:line-through;text-decoration-color:var(--red);text-decoration-thickness:2px}
     .label{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
@@ -207,7 +209,9 @@
       <div class="sub">${noRoute?'Kjøretid ikke tilgjengelig — ingen avgang kan anbefales':`Estimert kjøring ${c.drive} min · ${s.route.distanceKm} km vei · sikkerhetsmargin ${c.margin} min`}</div>
       ${latest?`<div class="notice" style="background:#e9f5ee;color:#147d55;border-color:#b8ddc7"><b>Reis senest kl. ${fmt(latest)}</b> for ferja kl. ${fmt(best.expected)}. ${Date.now()>latest.getTime()?'Avreisefristen er passert.':''}</div>`:''}
       ${!c.items.length?'<div class="empty">Ingen avganger funnet i tidsvinduet (Entur).</div>':''}
-      ${c.items.length?'<details><summary>Vis avganger</summary>':''}${c.items.map(d=>{const isBest=best===d;const isMiss=d.cancelled||d.when<c.now||(mode==='car'&&c.drive!=null&&d.when<c.now+(c.drive+c.margin)*60000);return `<div class="ferry ${isBest?'recommended':isMiss?'missed':''}">
+      ${c.items.length?'<details><summary>Vis avganger</summary>':''}${c.items.map(d=>{const isBest=best===d;const isMiss=d.cancelled||d.when<c.now||(mode==='car'&&c.drive!=null&&d.when<c.now+(c.drive+c.margin)*60000);
+       if(isMiss&&!d.cancelled)return `<div class="ferry missed compact"><div class="ferrytop"><span class="time">${fmt(d.expected)}</span><span class="state">Rekker ikke</span></div></div>`;
+       return `<div class="ferry ${isBest?'recommended':isMiss?'missed':''}">
         <div class="ferrytop"><div><div class="label">${esc(d.destination||d.line||'Ferjeavgang')}${d.realtime?' · Sanntid':' · Rutetid'}${d.carFerry?' · Bilferje':' · Biltransport ikke bekreftet'}</div><div class="time">${fmt(d.expected)}</div></div><span class="state">${d.cancelled?'Innstilt':isBest?'ANBEFALT':isMiss?'Rekker ikke':noRoute||!d.carFerry?'Uavklart':'Aktuell'}</span></div>
         <div class="details"><span>${esc(d.line)}</span><span>${d.when>=c.now?'Om '+Math.max(0,Math.round((d.when-c.now)/60000))+' min':'Avgang passert'}</span></div></div>`;}).join('')}${c.items.length?'</details>':''}</div>`;
    }).join('');
