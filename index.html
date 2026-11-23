@@ -215,7 +215,8 @@
   }
   function render(){if(!data)return;if(mode==='bus'){$('results').innerHTML='<div class="empty">Buss er ikke koblet til Entur ennå. Velg Bil for å se ferjeavganger og kjøreberegning.</div>';return;}
    const list=groupConnections(data.stops);
-   const driveMinutes=connection=>calculate(connection.direction).drive;
+   // Keep the connection in the same section when the user switches direction.
+   const driveMinutes=connection=>calculate(connection.nearest).drive;
    const nearby=list.filter(connection=>driveMinutes(connection)==null||driveMinutes(connection)<=90);
    const farther=list.filter(connection=>driveMinutes(connection)>90);
    const renderCards=connections=>connections.map(({lineId,direction:s,next:nextDirection})=>{
