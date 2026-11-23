@@ -5,14 +5,13 @@ Ferjekompis viser kommande ferjeavgangar frå Entur og reknar ut ei rettleiande 
 ## Dette kan appen
 
 - Finne ferjer nær GPS-posisjonen eller eit valt punkt på kartet.
-- Vise kommande bussavgangar frå dei næraste busshaldeplassane, innan 8 km frå GPS-posisjon eller valt kartpunkt.
 - Søkje etter ei bestemt ferjekai i Entur og vise avgangar derfrå, også utan GPS.
 - Bytte kai/retning innanfor eit samband.
 - Vise trekantsambandet Rv. 13 Vangsnes–Hella–Dragsvik som eitt kort med val av både avreisekai og reisemål, og avgangar filtrerte etter stoppemønsteret til ferja.
 - Vise rutetid, sanntidsinformasjon når Entur har det, og kansellerte avgangar.
 - Rekne ut kva avgang som kan vere aktuell med vald sikkerheitsmargin (5 minutt som standard).
 - I automatisk nærvising ligg samband med over 90 minutt estimert køyretid under «Vis også …»; eit manuelt søk på kai viser alle funne samband direkte.
-- Bussvisinga er ei enkel avgangstavle. Ho reknar ikkje ut gangtid, byte eller kva buss du rekk.
+- Opne Entur med bussreise til vald ferjekai; Entur-appen/nettsida handterer kollektivruta.
 - Hente avgangar frå ein Netlify Function, slik at Entur-nøkkelen ikkje trengst i nettlesaren.
 
 ## Viktige avgrensingar
@@ -22,6 +21,7 @@ Ferjekompis viser kommande ferjeavgangar frå Entur og reknar ut ei rettleiande 
 - Entur sine data kan vere ufullstendige eller endrast. Kontroller alltid avgangen og ferjeselskapet sine krav.
 - Filter for store og små ferjer er ikkje implementert; det krev ei påliteleg kjelde for ferjene sin kapasitet. Vegnummer og sorteringsprioritet seier ikkje kor stor båten er.
 - GPS-posisjonen blir sendt via Netlify-funksjonen for å finne kaier; vegberekninga sender posisjonen og kaia til OSRM. Appen lagrar ikkje posisjonen i ein brukarkonto.
+- Entur-lenka inneheld ID-en til den valde ferjekaia, men ikkje GPS-posisjonen. Entur kan bruke si eiga posisjonstilgang som startpunkt.
 - Nett trengst for ferske data. Service worker lagrar berre appskalet; kartfliser og avgangar er ikkje tilgjengelege offline.
 
 ## Netlify-oppsett

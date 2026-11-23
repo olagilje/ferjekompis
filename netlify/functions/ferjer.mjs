@@ -27,26 +27,6 @@ function departures(calls=[],destinationOverride=''){
   return {aimed:call.aimedDepartureTime,expected:call.expectedDepartureTime||call.aimedDepartureTime,realtime:call.realtime,cancelled:call.cancellation,destination:destinationOverride||call.destinationDisplay?.frontText||'',line:line.name,lineId:line.id,carFerry:true,samband:roadFerries[line.id]};
  }).sort((a,b)=>Date.parse(a.expected)-Date.parse(b.expected));
 }
-function busDepartures(calls=[]){
- return calls.filter(call=>call.forBoarding&&call.serviceJourney?.line?.transportMode==='bus'&&Date.parse(call.expectedDepartureTime||call.aimedDepartureTime)>=Date.now()-60000).map(call=>{
-  const line=call.serviceJourney.line;
-  return {aimed:call.aimedDepartureTime,expected:call.expectedDepartureTime||call.aimedDepartureTime,realtime:call.realtime,cancelled:call.cancellation,destination:call.destinationDisplay?.frontText||'',line:line.name||'',lineId:line.id||'',publicCode:line.publicCode||'',bus:true};
- }).sort((a,b)=>Date.parse(a.expected)-Date.parse(b.expected));
-}
-async function nearbyBusDepartures(lat,lon){
- const radius=0.08,diffLon=radius/Math.max(.34,Math.cos(lat*Math.PI/180));
- const raw=(await graphql(Q_STOPS,{a:lat-radius,b:lon-diffLon,c:lat+radius,d:lon+diffLon})).stopPlacesByBbox||[];
- const stops=raw.filter(stop=>stop.transportMode?.includes('bus')&&Number.isFinite(stop.latitude)&&Number.isFinite(stop.longitude))
-  .map(stop=>({...stop,straightKm:haversine(lat,lon,stop.latitude,stop.longitude)}))
-  .filter(stop=>stop.straightKm<=8).sort((a,b)=>a.straightKm-b.straightKm).slice(0,18);
- if(!stops.length)return {stops:[],fetchedAt:new Date().toISOString(),timetableProvider:'Entur Journey Planner v3',message:'Fant ingen busshaldeplassar innan 8 km.'};
- const start=new Date(Date.now()-5*60000).toISOString();
- const data=await graphql(Q_CALLS,{ids:stops.map(stop=>stop.id),start});
- const byId=new Map((data.stopPlaces||[]).filter(Boolean).map(stop=>[stop.id,stop]));
- const output=stops.map(stop=>({id:stop.id,name:stop.name,lat:stop.latitude,lon:stop.longitude,straightKm:Math.round(stop.straightKm*10)/10,departures:busDepartures(byId.get(stop.id)?.estimatedCalls)}))
-  .filter(stop=>stop.departures.length).slice(0,6);
- return {stops:output,fetchedAt:new Date().toISOString(),timetableProvider:'Entur Journey Planner v3',...(output.length?{}:{message:'Fant ingen kommande bussavgangar frå haldeplassane innan 8 km.'})};
-}
 async function nearbyWaterStops([lon,lat]){
  const radius=0.025;
  const width=radius/Math.max(.34,Math.cos(lat*Math.PI/180));
@@ -185,10 +165,6 @@ async function otherDirection(lat,lon,lineId,fromStopId,destination){
 export async function handler(event){
  try{
   const p=event.queryStringParameters||{};const lat=Number(p.lat),lon=Number(p.lon);
-  if(p.mode==='bus'){
-   if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat<57||lat>72||lon<4||lon>32)return reply(400,{error:'Vel ein posisjon i Noreg for å finne bussavgangar.'});
-   return reply(200,await nearbyBusDepartures(lat,lon));
-  }
   if(typeof p.pierSearch==='string'){
    const text=p.pierSearch.trim().slice(0,75);
    return reply(200,{piers:text.length>=2?await searchPiers(text):[]});
