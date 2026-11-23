@@ -45,9 +45,6 @@
     .ferry > summary:focus-visible{outline:2px solid var(--green);outline-offset:2px}
     .ferry .time{font-size:16px;letter-spacing:0}
     .ferry[open] .time,.ferry.recommended .time{font-size:25px;letter-spacing:-1px}
-    .departure-control{display:flex;align-items:center;gap:8px}
-    .departure-arrow{color:var(--muted)}
-    .ferry[open] .departure-arrow{transform:rotate(180deg)}
     .departure-info{padding:0 10px 10px}
     .ferrytop{display:flex;align-items:center;justify-content:space-between;gap:10px}
     .time{font-size:25px;font-weight:800;letter-spacing:-1px}.ferry.missed .time{text-decoration:line-through;text-decoration-color:var(--red);text-decoration-thickness:2px}
@@ -224,9 +221,9 @@
        const timing=`<span class="time">${fmt(d.expected)}</span>`;
        const details=`<div class="details"><span>${esc(d.line)}</span><span>${d.when>=c.now?'Om '+Math.max(0,Math.round((d.when-c.now)/60000))+' min':'Avgang passert'}</span></div>`;
        if(isBest)return `<div class="ferry recommended"><div class="ferrytop"><div>${label}${timing}</div></div>${details}</div>`;
-       const status=d.cancelled?'Innstilt':isMiss?'':noRoute||!d.carFerry?'Uavklart':'Aktuell';
+       const status=d.cancelled?'Innstilt':!isMiss&&(noRoute||!d.carFerry)?'Uavklart':'';
        return `<details class="ferry ${isMiss?'missed':''}">
-        <summary class="ferrytop">${timing}<span class="departure-control">${status?`<span class="state">${status}</span>`:''}<span class="departure-arrow" aria-hidden="true">⌄</span></span></summary>
+        <summary class="ferrytop">${timing}${status?`<span class="state">${status}</span>`:''}</summary>
         <div class="departure-info">${label}${details}</div></details>`;}).join('')}${c.items.length?'</details>':''}</div>`;
    }).join('');
    $('mapstatus').textContent='Ferjekaier fra Entur';showMarkers(data.stops);
