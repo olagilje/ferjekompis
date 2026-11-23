@@ -34,11 +34,18 @@
     .notice{background:#fff8e9;border:1px solid #f2e4c4;border-radius:13px;padding:11px 12px;font-size:12px;color:#755b28;margin-top:12px}
     .status{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}.dot{width:8px;height:8px;border-radius:50%;background:var(--gold)}
     .empty{padding:20px 8px;text-align:center;color:var(--muted);font-size:13px}
-    .ferry{border:1px solid var(--line);border-radius:15px;padding:13px;margin-top:9px}
+    .ferry{border:1px solid var(--line);border-radius:10px;margin-top:6px}
     .ferry.recommended{background:var(--pale);border-color:#b8ddc7}
-    .ferry.missed{opacity:.48;background:#f6f7f6}
-    .ferry.missed.compact{padding:6px 10px;margin-top:6px;border-radius:10px;line-height:1.25}
-    .ferry.missed.compact .time{font-size:16px;letter-spacing:0}
+    .ferry.missed{background:#f6f7f6}
+    .ferry > summary{list-style:none;cursor:pointer;padding:6px 10px;min-height:42px;box-sizing:border-box;border-radius:9px}
+    .ferry > summary::-webkit-details-marker{display:none}
+    .ferry > summary:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+    .ferry .time{font-size:16px;letter-spacing:0}
+    .ferry[open] .time{font-size:25px}
+    .departure-control{display:flex;align-items:center;gap:8px}
+    .departure-arrow{color:var(--muted)}
+    .ferry[open] .departure-arrow{transform:rotate(180deg)}
+    .departure-info{padding:0 10px 10px}
     .ferrytop{display:flex;align-items:center;justify-content:space-between;gap:10px}
     .time{font-size:25px;font-weight:800;letter-spacing:-1px}.ferry.missed .time{text-decoration:line-through;text-decoration-color:var(--red);text-decoration-thickness:2px}
     .label{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
@@ -210,10 +217,10 @@
       ${latest?`<div class="notice" style="background:#e9f5ee;color:#147d55;border-color:#b8ddc7"><b>Reis senest kl. ${fmt(latest)}</b> for ferja kl. ${fmt(best.expected)}. ${Date.now()>latest.getTime()?'Avreisefristen er passert.':''}</div>`:''}
       ${!c.items.length?'<div class="empty">Ingen avganger funnet i tidsvinduet (Entur).</div>':''}
       ${c.items.length?'<details><summary>Vis avganger</summary>':''}${c.items.map(d=>{const isBest=best===d;const isMiss=d.cancelled||d.when<c.now||(mode==='car'&&c.drive!=null&&d.when<c.now+(c.drive+c.margin)*60000);
-       if(isMiss&&!d.cancelled)return `<div class="ferry missed compact"><div class="ferrytop"><span class="time">${fmt(d.expected)}</span><span class="state">Rekker ikke</span></div></div>`;
-       return `<div class="ferry ${isBest?'recommended':isMiss?'missed':''}">
-        <div class="ferrytop"><div><div class="label">${esc(d.destination||d.line||'Ferjeavgang')}${d.realtime?' · Sanntid':' · Rutetid'}${d.carFerry?' · Bilferje':' · Biltransport ikke bekreftet'}</div><div class="time">${fmt(d.expected)}</div></div><span class="state">${d.cancelled?'Innstilt':isBest?'ANBEFALT':isMiss?'Rekker ikke':noRoute||!d.carFerry?'Uavklart':'Aktuell'}</span></div>
-        <div class="details"><span>${esc(d.line)}</span><span>${d.when>=c.now?'Om '+Math.max(0,Math.round((d.when-c.now)/60000))+' min':'Avgang passert'}</span></div></div>`;}).join('')}${c.items.length?'</details>':''}</div>`;
+       return `<details class="ferry ${isBest?'recommended':isMiss?'missed':''}">
+        <summary class="ferrytop"><span class="time">${fmt(d.expected)}</span><span class="departure-control"><span class="state">${d.cancelled?'Innstilt':isBest?'ANBEFALT':isMiss?'Rekker ikke':noRoute||!d.carFerry?'Uavklart':'Aktuell'}</span><span class="departure-arrow" aria-hidden="true">⌄</span></span></summary>
+        <div class="departure-info"><div class="label">${esc(d.destination||d.line||'Ferjeavgang')}${d.realtime?' · Sanntid':' · Rutetid'}${d.carFerry?' · Bilferje':' · Biltransport ikke bekreftet'}</div>
+        <div class="details"><span>${esc(d.line)}</span><span>${d.when>=c.now?'Om '+Math.max(0,Math.round((d.when-c.now)/60000))+' min':'Avgang passert'}</span></div></div></details>`;}).join('')}${c.items.length?'</details>':''}</div>`;
    }).join('');
    $('mapstatus').textContent='Ferjekaier fra Entur';showMarkers(data.stops);
   }
