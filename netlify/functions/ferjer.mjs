@@ -88,8 +88,17 @@ async function journey(lat,lon,destination){
 }
 async function route(lat,lon,stop){
  // OSRM's public demo service is for prototyping ONLY. Replace with contracted router before launch.
- const url=`https://router.project-osrm.org/route/v1/driving/${lon},${lat};${stop.longitude},${stop.latitude}?overview=false`;
- try{const r=await fetch(url,{signal:AbortSignal.timeout(7000)});if(!r.ok)return null;const j=await r.json();const route=j.routes?.[0];return j.code==='Ok'&&route&&Number.isFinite(route.duration)?{minutes:Math.ceil(route.duration/60),distanceKm:Math.round(route.distance/100)/10,source:'OSRM-test'}:null;}catch{return null;}
+ const url=`https://router.project-osrm.org/route/v1/driving/${lon},${lat};${stop.longitude},${stop.latitude}?steps=true&overview=false`;
+ try{
+  const response=await fetch(url,{signal:AbortSignal.timeout(7000)});
+  if(!response.ok)return null;
+  const result=await response.json();
+  const route=result.routes?.[0];
+  if(result.code!=='Ok'||!Number.isFinite(route?.duration)||!route.legs?.length||!route.legs.every(leg=>Array.isArray(leg.steps)))return null;
+  const ferrySteps=route.legs.flatMap(leg=>leg.steps.filter(step=>step.mode==='ferry'));
+  return {minutes:Math.ceil(route.duration/60),distanceKm:Math.round(route.distance/100)/10,source:'OSRM-test',
+   viaFerry:ferrySteps.length>0,ferryNames:[...new Set(ferrySteps.map(step=>step.name).filter(Boolean))]};
+ }catch{return null;}
 }
 async function otherDirection(lat,lon,lineId,fromStopId,destination){
  const {line}=await graphql(Q_LINE_STOPS,{id:lineId});
