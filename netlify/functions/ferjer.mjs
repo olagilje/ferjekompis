@@ -23,6 +23,9 @@ export async function handler(event){
   const p=event.queryStringParameters||{};const lat=Number(p.lat),lon=Number(p.lon);
   if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat<57||lat>72||lon<4||lon>32)return reply(400,{error:'Ugyldig norsk GPS-posisjon.'});
   const search=(p.search||'').trim().slice(0,75);
+  const destination=(p.destination||'').trim().slice(0,75);
+  const destinationQuery=destination.normalize('NFC').toLocaleLowerCase('nb-NO');
+  const noDestinationMatch='Fant ingen avganger til dette reisemålet i søkeområdet. Tøm reisemålsfeltet for å søke etter alle ferjer i nærheten.';
   const radius=Math.min(0.75,Math.max(0.16,Number(p.radius)||0.75)); // degrees latitude ~18–83 km
   const diffLon=radius/Math.max(.34,Math.cos(lat*Math.PI/180));
   const bounds={a:lat-radius,b:lon-diffLon,c:lat+radius,d:lon+diffLon};
@@ -32,7 +35,7 @@ export async function handler(event){
     .sort((a,b)=>a.straightKm-b.straightKm);
   if(search){const q=search.toLocaleLowerCase('no-NO');stops=stops.filter(s=>s.name.toLocaleLowerCase('no-NO').includes(q));}
   stops=stops.slice(0,search?7:60);
-  if(!stops.length)return reply(200,{stops:[],fetchedAt:new Date().toISOString(),message:search?'Fant ingen ferjekaier med dette navnet i søkeområdet.':'Ingen registrerte ferjekaier ble funnet i søkeområdet.'});
+  if(!stops.length)return reply(200,{stops:[],destination,fetchedAt:new Date().toISOString(),message:search?'Fant ingen ferjekaier med dette navnet i søkeområdet.':'Ingen registrerte ferjekaier ble funnet i søkeområdet.'});
   const start=new Date(Date.now()-75*60000).toISOString();
   const data=await graphql(Q_CALLS,{ids:stops.map(s=>s.id),start});
   const byId=new Map((data.stopPlaces||[]).filter(Boolean).map(s=>[s.id,s]));
@@ -40,7 +43,9 @@ export async function handler(event){
     const details=byId.get(s.id);
     const calls=(details?.estimatedCalls||[]).filter(c=>{
       const line=c.serviceJourney?.line;
-      return c.forBoarding && line?.transportMode==='water' && Object.hasOwn(roadFerries,line.id);
+      const destinationName=c.destinationDisplay?.frontText||'';
+      return c.forBoarding && line?.transportMode==='water' && Object.hasOwn(roadFerries,line.id) &&
+        (!destinationQuery || destinationName.normalize('NFC').toLocaleLowerCase('nb-NO').includes(destinationQuery));
     })
      .map(c=>{
        const line=c.serviceJourney.line;
@@ -55,6 +60,6 @@ export async function handler(event){
     id:stop.id,name:stop.name,lat:stop.latitude,lon:stop.longitude,
     straightKm:Math.round(stop.straightKm*10)/10,route:await route(lat,lon,stop),departures:calls
   })));
-  return reply(200,{stops:output,fetchedAt:new Date().toISOString(),routingProvider:'OSRM public demo — ikke produksjonsklar',timetableProvider:'Entur Journey Planner v3'});
+  return reply(200,{stops:output,destination,fetchedAt:new Date().toISOString(),routingProvider:'OSRM public demo — ikke produksjonsklar',timetableProvider:'Entur Journey Planner v3',...(destination&&!output.length?{message:noDestinationMatch}:{})});
  }catch(e){console.error('Ferjekompis API:',e);return reply(502,{error:'Kunne ikke hente ferske opplysninger. '+e.message});}
 }
