@@ -202,7 +202,7 @@
     return `<div style="margin-top:16px"><div class="sectionhead" style="margin-bottom:2px"><h2>${esc([s.samband.road,s.samband.name].filter(Boolean).join(' '))}</h2><span class="sub">${s.straightKm} km luftlinje</span></div>
       <div class="sectionhead" style="margin-bottom:2px">
        <div class="sub" aria-live="polite">Fra ${esc(s.name)}${s.destination?' til '+esc(s.destination):''} · ${next?'Neste avgang kl. '+fmt(next.expected):'Ingen kommende avgang funnet'}</div>
-       ${nextDirection?`<button type="button" class="linkbtn" data-line="${esc(lineId)}" data-direction="${esc(nextDirection.key)}" aria-label="Bytt retning til fra ${esc(nextDirection.name)}${nextDirection.destination?' til '+esc(nextDirection.destination):''}">⇄ Bytt</button>`:''}
+       <button type="button" class="linkbtn" data-line="${esc(lineId)}" data-direction="${esc(nextDirection?.key||'')}" data-stop="${esc(s.id)}" data-to="${esc(s.destination)}" aria-label="${nextDirection?'Bytt retning til fra '+esc(nextDirection.name)+(nextDirection.destination?' til '+esc(nextDirection.destination):''):'Finn avgang fra den andre kaia'}">⇄ Bytt</button>
       </div>
       <div class="sub">${noRoute?'Kjøretid ikke tilgjengelig — ingen avgang kan anbefales':`Estimert kjøring ${c.drive} min · ${s.route.distanceKm} km vei · sikkerhetsmargin ${c.margin} min`}</div>
       ${latest?`<div class="notice" style="background:#e9f5ee;color:#147d55;border-color:#b8ddc7"><b>Reis senest kl. ${fmt(latest)}</b> for ferja kl. ${fmt(best.expected)}. ${Date.now()>latest.getTime()?'Avreisefristen er passert.':''}</div>`:''}
@@ -222,12 +222,32 @@
    finally{$('find').disabled=false;$('find').textContent='Oppdater ferjeavganger';}
   }
   $('locate').addEventListener('click',locate);$('find').addEventListener('click',find);$('buffer').addEventListener('change',render);
-  $('results').addEventListener('click',event=>{
+  $('results').addEventListener('click',async event=>{
    const button=event.target.closest('button[data-direction]');
    if(!button)return;
-   chosenDirections.set(button.dataset.line,button.dataset.direction);
+   const {line,direction,stop,to}=button.dataset;
+   if(direction)chosenDirections.set(line,direction);
+   else{
+    const current=data;
+    const params=new URLSearchParams({lat:position.lat,lon:position.lon,lineId:line,fromStopId:stop,to});
+    button.disabled=true;
+    button.textContent='Henter …';
+    try{
+     const response=await fetch('/.netlify/functions/ferjer?'+params,{cache:'no-store'});
+     const result=await response.json();
+     if(data!==current)return;
+     if(!response.ok)throw Error(result.error||'Kunne ikke hente den andre kaia.');
+     const other=result.stops[0];
+     if(!other){toast(result.message);return;}
+     const existing=data.stops.find(s=>s.id===other.id);
+     if(existing)existing.departures=[...existing.departures.filter(d=>d.lineId!==line),...other.departures];
+     else data.stops.push(other);
+     chosenDirections.set(line,JSON.stringify([other.id,line,other.departures[0].destination]));
+    }catch(error){if(data===current)toast(error.message);return;}
+    finally{button.disabled=false;button.textContent='⇄ Bytt';}
+   }
    render();
-   $('results').querySelector(`button[data-line="${CSS.escape(button.dataset.line)}"]`)?.focus();
+   $('results').querySelector(`button[data-line="${CSS.escape(line)}"]`)?.focus();
   });
   $('picklocation').addEventListener('click',()=>setPickingLocation(!pickingLocation));
   $('usemapcenter').addEventListener('click',()=>chooseMapPoint(map.getCenter()));

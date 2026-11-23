@@ -4,6 +4,7 @@ const CLIENT = process.env.ENTUR_CLIENT_NAME || 'ferjekompis-web';
 const HEADERS = { 'content-type': 'application/json', 'ET-Client-Name': CLIENT };
 const Q_STOPS = `query($a:Float!,$b:Float!,$c:Float!,$d:Float!){stopPlacesByBbox(minimumLatitude:$a,minimumLongitude:$b,maximumLatitude:$c,maximumLongitude:$d,filterByInUse:true){id name latitude longitude transportMode transportSubmode}}`;
 const Q_CALLS = `query($ids:[String],$start:DateTime){stopPlaces(ids:$ids){id name latitude longitude estimatedCalls(startTime:$start,timeRange:43200,numberOfDepartures:45,includeCancelledTrips:true){aimedDepartureTime expectedDepartureTime realtime cancellation forBoarding destinationDisplay{frontText} serviceJourney{line{id name publicCode transportMode transportSubmode}}}}}`;
+const Q_LINE_STOPS = `query($id:ID!){line(id:$id){quays{stopPlace{id name latitude longitude parent{id name latitude longitude}}}}}`;
 function reply(code, data) { return {statusCode:code, headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'},body:JSON.stringify(data)}; }
 async function graphql(query, variables) {
  const response=await fetch(API,{method:'POST',headers:HEADERS,body:JSON.stringify({query,variables}),signal:AbortSignal.timeout(14000)});
@@ -90,10 +91,44 @@ async function route(lat,lon,stop){
  const url=`https://router.project-osrm.org/route/v1/driving/${lon},${lat};${stop.longitude},${stop.latitude}?overview=false`;
  try{const r=await fetch(url,{signal:AbortSignal.timeout(7000)});if(!r.ok)return null;const j=await r.json();const route=j.routes?.[0];return j.code==='Ok'&&route&&Number.isFinite(route.duration)?{minutes:Math.ceil(route.duration/60),distanceKm:Math.round(route.distance/100)/10,source:'OSRM-test'}:null;}catch{return null;}
 }
+async function otherDirection(lat,lon,lineId,fromStopId,destination){
+ const {line}=await graphql(Q_LINE_STOPS,{id:lineId});
+ const candidates=new Map();
+ let originName='';
+ for(const quay of line?.quays||[]){
+  const place=quay.stopPlace;
+  const stop=place?.parent||place;
+  if(!stop)continue;
+  if(stop.id===fromStopId||place.id===fromStopId)originName=normalizePlace(stop.name);
+  else if(Number.isFinite(stop.latitude)&&Number.isFinite(stop.longitude))candidates.set(stop.id,stop);
+ }
+ if(!originName)return [];
+ const target=normalizePlace(destination);
+ const named=[...candidates.values()].filter(stop=>target&&normalizePlace(stop.name)===target);
+ const ids=named.length?named.map(stop=>stop.id):[...candidates.keys()];
+ if(!ids.length)return [];
+ const start=new Date(Date.now()-75*60000).toISOString();
+ const {stopPlaces}=await graphql(Q_CALLS,{ids,start});
+ const matches=(stopPlaces||[]).filter(Boolean).flatMap(stop=>{
+  const calls=departures(stop.estimatedCalls).filter(call=>call.lineId===lineId);
+  const returning=calls.filter(call=>originName&&normalizePlace(call.destination)===originName);
+  const selected=returning.length?returning:named.length||candidates.size===1?calls:[];
+  return selected.length?[{stop,calls:selected}]:[];
+ });
+ matches.sort((a,b)=>haversine(lat,lon,a.stop.latitude,a.stop.longitude)-haversine(lat,lon,b.stop.latitude,b.stop.longitude));
+ if(!matches.length)return [];
+ const {stop,calls}=matches[0];
+ return [{id:stop.id,name:stop.name,lat:stop.latitude,lon:stop.longitude,straightKm:Math.round(haversine(lat,lon,stop.latitude,stop.longitude)*10)/10,route:await route(lat,lon,stop),departures:calls}];
+}
 export async function handler(event){
  try{
   const p=event.queryStringParameters||{};const lat=Number(p.lat),lon=Number(p.lon);
   if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat<57||lat>72||lon<4||lon>32)return reply(400,{error:'Ugyldig norsk GPS-posisjon.'});
+  if(p.lineId){
+   if(!Object.hasOwn(roadFerries,p.lineId)||!p.fromStopId?.startsWith('NSR:StopPlace:'))return reply(400,{error:'Ugyldig ferjesamband eller avreisekai.'});
+   const stops=await otherDirection(lat,lon,p.lineId,p.fromStopId,(p.to||'').slice(0,100));
+   return reply(200,{stops,...(!stops.length?{message:'Fant ingen avganger fra den andre kaia i Enturs tidsvindu.'}:{})});
+  }
   const search=(p.search||'').trim().slice(0,75);
   const destination=(p.destination||'').trim().slice(0,75);
   if(destination)return reply(200,await journey(lat,lon,destination));
