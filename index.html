@@ -80,12 +80,12 @@
       <button class="smallbtn" id="locate">⌖ Min posisjon</button>
     </div>
     <button class="linkbtn" id="picklocation" aria-pressed="false" disabled>Velg startpunkt på kartet</button>
-    <div class="sub">Posisjonen blir brukt til å finne kaiar. Vegtida blir rekna ut via appen og OSRM.</div>
+    <div class="sub" id="locationhint">Posisjonen blir brukt til å finne kaiar. Vegtida blir rekna ut via appen og OSRM.</div>
     <div class="transport" role="group" aria-label="Transportmiddel">
       <button class="active" data-mode="car">🚗 Bil</button>
       <button data-mode="bus">🚌 Buss</button>
     </div>
-    <div class="settings">
+    <div class="settings" id="carsettings">
       <span class="sub">Sikkerhetsmargin før avgang</span>
       <select id="buffer"><option value="5" selected>5 minutter</option><option value="10">10 minutter</option><option value="15">15 minutter</option><option value="20">20 minutter</option></select>
     </div>
@@ -98,7 +98,7 @@
   </section>
 
   <section class="card">
-    <div class="sectionhead"><h2>Ferjer du kan rekke</h2></div>
+    <div class="sectionhead"><h2 id="resultstitle">Ferjer du kan rekke</h2></div>
     <div class="results-actions"><button class="linkbtn" id="manualtoggle" aria-expanded="false" aria-controls="manual">Søk etter ferjekai</button><button type="button" class="refreshbtn" id="find" disabled>↻ Oppdater ferjeavganger</button></div>
     <button type="button" class="linkbtn" id="allnearby" hidden>Vis alle i nærheten</button>
     <div id="manual" hidden>
@@ -159,8 +159,7 @@
     map.setView([lat,lon],fromMap?map.getZoom():11);
    }
    data=null;
-   if(mode==='car')find();
-   else $('results').innerHTML='<div class="empty">Velg Bil for å hente ferjeavganger fra startpunktet.</div>';
+   find();
   }
   function chooseMapPoint({lat,lng}){
    if(lat<57||lat>72||lng<4||lng>32){toast('Velg et startpunkt i Norge.');return;}
@@ -217,7 +216,14 @@
    });
    return cards.sort((a,b)=>a.nearest.samband.priority-b.nearest.samband.priority||a.nearest.straightKm-b.nearest.straightKm||a.nearest.samband.name.localeCompare(b.nearest.samband.name,'nb'));
   }
-  function render(){if(!data)return;if(mode==='bus'){$('results').innerHTML='<div class="empty">Buss er ikke koblet til Entur ennå. Velg Bil for å se ferjeavganger og kjøreberegning.</div>';return;}
+  function renderBus(){
+   const stops=data.stops||[];
+   $('results').innerHTML=`<div class="sub">${data.fetchedAt?`Entur-data henta ${fmt(data.fetchedAt)} · `:''}${stops.length} haldeplassar i nærleiken</div>`+
+    (stops.length?stops.map(stop=>`<div class="connection-card"><div class="sectionhead" style="margin-bottom:5px"><h2>${esc(stop.name)}</h2><span class="sub">${stop.straightKm} km luftlinje</span></div>`+
+     (stop.departures.length?stop.departures.slice(0,5).map(call=>`<div class="ferry ${call.cancelled?'missed':''}"><div class="ferrytop" style="padding:7px 10px"><div><div class="label">${esc(call.destination||'Bussavgang')}${call.cancelled?' · Innstilt':''}</div><div class="sub">${esc(call.publicCode?`Linje ${call.publicCode}`:call.line||'Buss')}${call.realtime?' · Sanntid':' · Rutetid'}</div></div><span class="time">${fmt(call.expected)}</span></div></div>`).join(''):'<div class="empty">Ingen kommande avgangar i Entur sitt tidsvindauge.</div>')+`</div>`).join(''):`<div class="empty">${esc(data.message||'Ingen busshaldeplassar med kommande avgangar blei funne innan 8 km.')}</div>`);
+   $('mapstatus').textContent='Busshaldeplassar frå Entur';showMarkers(stops);
+  }
+  function render(){if(!data)return;if(mode==='bus'){renderBus();return;}
    const list=groupConnections(data.stops);
    const automaticView=!selectedPierId;
    const driveMinutes=connection=>calculate(connection.nearest).drive;
@@ -270,18 +276,18 @@
    $('results').innerHTML=`<div class="sub">Entur-data hentet ${fmt(data.fetchedAt)} · ${list.length} ferjesamband</div>`+(!list.length?'<div class="empty">Ingen avganger funnet for europaveg-, riksveg- eller fylkesvegferjer i søkeområdet.</div>':'')+renderCards(nearby)+(farther.length?`<details class="farther-connections"><summary>Vis også ${farther.length} samband med over 90 min køyretid</summary>${renderCards(farther)}</details>`:'');
    $('mapstatus').textContent='Ferjekaier fra Entur';showMarkers(data.stops);
   }
-  async function find(){if(!position&&!selectedPierId){toast('Bruk «Min posisjon» eller velg et startpunkt på kartet.');return;}if(mode==='bus'){toast('Bussruter er ikke implementert ennå. Velg Bil for beregning.');return;}
-   triangleOrigins.clear();triangleChoices.clear();triangleResults.clear();
+  async function find(){if(mode==='bus'&&!position){toast('Vel posisjon på kartet eller hent posisjonen din for å finne bussar.');return;}if(!position&&!selectedPierId){toast('Bruk «Min posisjon» eller velg et startpunkt på kartet.');return;}
+   if(mode==='car'){triangleOrigins.clear();triangleChoices.clear();triangleResults.clear();}
    const origin=position;
    departureRequest?.abort();
    const request=new AbortController();
    departureRequest=request;
    data=null;
-   $('find').disabled=true;$('find').textContent='Henter rutetider …';$('results').innerHTML='<div class="empty">Henter faktiske ferjekaier og avganger fra Entur …</div>';
-   try{const params=new URLSearchParams(origin||{});if(selectedPierId)params.set('stopId',selectedPierId);
+   $('find').disabled=true;$('find').textContent=mode==='bus'?'Hentar bussar …':'Henter rutetider …';$('results').innerHTML=mode==='bus'?'<div class="empty">Hentar busshaldeplassar og avgangar frå Entur …</div>':'<div class="empty">Henter faktiske ferjekaier og avganger fra Entur …</div>';
+   try{const params=new URLSearchParams(origin||{});if(mode==='bus')params.set('mode','bus');else if(selectedPierId)params.set('stopId',selectedPierId);
     const response=await fetch('/.netlify/functions/ferjer?'+params,{cache:'no-store',signal:request.signal});const json=await response.json();if(request!==departureRequest||origin!==position)return;if(!response.ok)throw Error(json.error||'Forespørselen feilet');data=json;render();if(json.message)toast(json.message);
-   }catch(e){if(request!==departureRequest||origin!==position)return;data=null;$('results').innerHTML='<div class="empty">Kunne ikke hente ekte data. '+esc(e.message)+'<p>Appen må publiseres på Netlify eller kjøres med Netlify Dev. Ingen eksempelavganger vises.</p></div>';}
-   finally{if(request===departureRequest){departureRequest=null;$('find').disabled=mode!=='car';$('find').textContent='↻ Oppdater ferjeavganger';}}
+   }catch(e){if(request!==departureRequest||origin!==position)return;data=null;$('results').innerHTML='<div class="empty">Kunne ikke hente ekte data. '+esc(e.message)+'<p>Ingen eksempelavganger vises.</p></div>';}
+   finally{if(request===departureRequest){departureRequest=null;$('find').disabled=(!position&&(mode==='bus'||!selectedPierId));$('find').textContent=mode==='bus'?'↻ Oppdater bussavgangar':'↻ Oppdater ferjeavganger';}}
   }
   $('locate').addEventListener('click',locate);$('find').addEventListener('click',find);$('buffer').addEventListener('change',render);
   $('results').addEventListener('click',async event=>{
@@ -342,12 +348,14 @@
   document.querySelectorAll('[data-mode]').forEach(btn=>btn.addEventListener('click',()=>{
    mode=btn.dataset.mode;
    document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===btn));
-   $('find').disabled=(!position&&!selectedPierId)||mode==='bus'||!!departureRequest;
-   if(mode==='bus'){
-    toast('Buss kommer i neste fase; visningen gir ikke buss-anbefalinger.');
-    $('results').innerHTML='<div class="empty">Buss er ikke koblet til Entur ennå. Velg Bil for å se ferjeavganger og kjøreberegning.</div>';
-   }else if((position||selectedPierId)&&!data&&!departureRequest)find();
-   else render();
+   $('resultstitle').textContent=mode==='bus'?'Bussavgangar nær deg':'Ferjer du kan rekke';
+   $('locationhint').textContent=mode==='bus'?'Finn busshaldeplassar og avgangar nær startpunktet ditt.':'Posisjonen blir brukt til å finne kaiar. Vegtida blir rekna ut via appen og OSRM.';
+   $('manualtoggle').hidden=mode==='bus';$('manual').hidden=mode==='bus'||$('manual').hidden;
+   $('carsettings').hidden=mode==='bus';$('warning').hidden=mode==='bus';$('allnearby').hidden=mode==='bus'||!selectedPierId;
+   $('find').disabled=(!position&&(mode==='bus'||!selectedPierId))||!!departureRequest;
+   $('find').textContent=mode==='bus'?'↻ Oppdater bussavgangar':'↻ Oppdater ferjeavganger';
+   if(position||(mode==='car'&&selectedPierId))find();
+   else{$('results').innerHTML=`<div class="empty">${mode==='bus'?'Vel posisjon på kartet eller hent posisjonen din for å finne busshaldeplassar.':'Bruk «Min posisjon» eller vel eit startpunkt på kartet.'}</div>`;}
   }));
   function showPierSearch(open){
    $('manual').hidden=!open;
