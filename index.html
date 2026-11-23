@@ -39,6 +39,7 @@
     .ferry.recommended{border-radius:15px;padding:13px;margin-top:9px}
     .connection-card{margin-top:16px}
     .connection-card + .connection-card{border-top:1px solid var(--line);padding-top:16px}
+    .farther-connections{margin-top:12px}.farther-connections>summary{cursor:pointer;color:var(--green);font-size:13px;font-weight:700;padding:10px 4px}
     .results-actions{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
     .refreshbtn{background:var(--pale);color:var(--green);border-radius:999px;padding:6px 10px;min-height:36px;font-size:12px;font-weight:700}
     .refreshbtn:disabled{opacity:.6;cursor:default}
@@ -214,6 +215,10 @@
   }
   function render(){if(!data)return;if(mode==='bus'){$('results').innerHTML='<div class="empty">Buss er ikke koblet til Entur ennå. Velg Bil for å se ferjeavganger og kjøreberegning.</div>';return;}
    const list=groupConnections(data.stops);
+   const automaticView=!selectedPierId;
+   const driveMinutes=connection=>calculate(connection.nearest).drive;
+   const nearby=automaticView?list.filter(connection=>driveMinutes(connection)==null||driveMinutes(connection)<=90):list;
+   const farther=automaticView?list.filter(connection=>driveMinutes(connection)>90):[];
    const renderCards=connections=>connections.map(({lineId,direction:s,next:nextDirection})=>{
     const c=calculate(s);const best=c.recommended;const latest=best&&c.drive!=null?new Date(best.when-(c.drive+c.margin)*60000):null;
     const noRoute=c.drive==null;
@@ -236,7 +241,7 @@
         <summary class="ferrytop">${timing}${status?`<span class="state">${status}</span>`:''}</summary>
         <div class="departure-info">${label}${details}</div></details>`;}).join('')}${c.items.length?'</details>':''}</div>`;
    }).join('');
-   $('results').innerHTML=`<div class="sub">Entur-data hentet ${fmt(data.fetchedAt)} · ${list.length} ferjesamband</div>`+(!list.length?'<div class="empty">Ingen avganger funnet for europaveg-, riksveg- eller fylkesvegferjer i søkeområdet.</div>':'')+renderCards(list);
+   $('results').innerHTML=`<div class="sub">Entur-data hentet ${fmt(data.fetchedAt)} · ${list.length} ferjesamband</div>`+(!list.length?'<div class="empty">Ingen avganger funnet for europaveg-, riksveg- eller fylkesvegferjer i søkeområdet.</div>':'')+renderCards(nearby)+(farther.length?`<details class="farther-connections"><summary>Vis også ${farther.length} samband med over 90 min køyretid</summary>${renderCards(farther)}</details>`:'');
    $('mapstatus').textContent='Ferjekaier fra Entur';showMarkers(data.stops);
   }
   async function find(){if(!position&&!selectedPierId){toast('Bruk «Min posisjon» eller velg et startpunkt på kartet.');return;}if(mode==='bus'){toast('Bussruter er ikke implementert ennå. Velg Bil for beregning.');return;}
