@@ -7,6 +7,7 @@
   <meta name="description" content="Ferjekompis – finn ferja du rekker, og når du må reise.">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <title>Ferjekompis</title>
   <style>
@@ -14,7 +15,7 @@
     *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     .shell{max-width:520px;margin:0 auto;min-height:100vh;padding:env(safe-area-inset-top) 16px calc(28px + env(safe-area-inset-bottom))}
     header{display:flex;align-items:center;justify-content:space-between;padding:22px 2px 18px}
-    .brand{display:flex;gap:10px;align-items:center}.logo{width:42px;height:42px;border-radius:14px;background:var(--ink);display:grid;place-items:center;color:#fff;font-size:22px}
+    .brand{display:flex;gap:10px;align-items:center}.logo{width:42px;height:42px;border-radius:14px;background:#fff;border:1px solid var(--line);overflow:hidden;display:grid;place-items:center}.logo img{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit}
     h1{font-size:21px;line-height:1;margin:0;letter-spacing:-.5px}.tag{font-size:11px;color:var(--muted);margin-top:4px}
     .pill{border:1px solid var(--line);background:#fff;border-radius:30px;padding:7px 11px;font-size:12px;color:var(--muted)}
     .autolocate-pill{display:flex;align-items:center;gap:6px;white-space:nowrap;cursor:pointer}.autolocate-pill input{margin:0;accent-color:var(--green)}
@@ -70,7 +71,7 @@
 <body>
 <div class="shell">
   <header>
-    <div class="brand"><div class="logo">⛴</div><div><h1>Ferjekompis</h1><div class="tag">Reis når du rekker ferja</div></div></div>
+  <div class="brand"><div class="logo"><img src="icon.svg" alt=""></div><div><h1>Ferjekompis</h1><div class="tag">Reis så du rekk ferja</div></div></div>
     <label class="pill autolocate-pill" for="autolocate" title="Hent posisjon automatisk når Ferjekompis opnar"><input type="checkbox" id="autolocate"><span>Auto posisjon</span></label>
   </header>
 
@@ -80,7 +81,7 @@
       <button class="smallbtn" id="locate">⌖ Min posisjon</button>
     </div>
     <button class="linkbtn" id="picklocation" aria-pressed="false" disabled>Velg startpunkt på kartet</button>
-    <div class="sub" id="locationhint">Posisjonen blir brukt til å finne kaiar. Vegtida blir rekna ut via appen og OSRM.</div>
+    <div class="sub" id="locationhint">Posisjonen blir brukt til å finne kaiar. Appen prøver vegdata frå Statens vegvesen først, med OSRM som reserve.</div>
     <div class="settings" id="carsettings">
       <span class="sub">Sikkerhetsmargin før avgang</span>
       <select id="buffer"><option value="5" selected>5 minutter</option><option value="10">10 minutter</option><option value="15">15 minutter</option><option value="20">20 minutter</option></select>
@@ -102,7 +103,7 @@
       <div id="piermatches" aria-live="polite"></div>
     </div>
     <div id="results"><div class="empty">Bruk «Min posisjon» eller velg et startpunkt på kartet.</div></div>
-    <div class="notice" id="warning"><b>Berre rettleiande:</b> Køyretida kjem frå ein offentleg testserver og kan vere feil. Ho tek ikkje høgde for kø, oppstilling eller innsjekkfrist. Kontroller alltid rutetida og møt opp i god tid.</div>
+    <div class="notice" id="warning"><b>Berre rettleiande:</b> Køyretid og avstand er estimat. Ved lange turar til ferjekaia, særleg når ruta krev fleire ferjer, kan dei vere unøyaktige. Sjekk ruta i ruteplanleggjaren du vanlegvis brukar, og kontroller avgang og oppmøtetid hjå ferjeoperatøren. Kø, oppstilling og innsjekk kan påverke reisa.</div>
   </section>
   <footer>Ferjekompis · Bygges steg for steg i Norge 🇳🇴</footer>
 </div>
@@ -233,6 +234,7 @@
    return `<a class="entur-link" href="https://entur.no/travel-result?${params}" target="_blank" rel="noopener noreferrer">Finn buss til ${esc(stop.name)} i Entur ↗</a>`;
   }
   function render(){if(!data)return;
+   const fartherWasOpen=$('results').querySelector('.farther-connections')?.open??false;
    const list=groupConnections(data.stops);
    const automaticView=!selectedPierId;
    const driveMinutes=connection=>calculate(connection.nearest).drive;
@@ -269,7 +271,7 @@
        ${triangle?'':`<button type="button" class="linkbtn" data-line="${esc(lineId)}" data-direction="${esc(nextDirection?.key||'')}" data-stop="${esc(s.id)}" data-to="${esc(s.destination)}" aria-label="${nextDirection?'Bytt retning til fra '+esc(nextDirection.name)+(nextDirection.destination?' til '+esc(nextDirection.destination):''):'Finn avgang fra den andre kaia'}">⇄ Bytt</button>`}
       </div>
       ${triangle?`<div class="sub">Avreisekai</div><div class="triangle-targets" role="group" aria-label="Vel avreisekai">${origins.map(origin=>`<button type="button" class="${normalizeTerminal(origin)===normalizeTerminal(sourceName)?'active':''}" data-triangle-line="${esc(lineId)}" data-triangle-origin="${esc(origin)}" aria-pressed="${normalizeTerminal(origin)===normalizeTerminal(sourceName)}">${esc(origin)}</button>`).join('')}</div><div class="sub">Reisemål</div><div class="triangle-targets" role="group" aria-label="Vel reisemål frå ${esc(sourceName)}">${targets.map(target=>`<button type="button" class="${normalizeTerminal(target)===normalizeTerminal(destination)?'active':''}" data-triangle-line="${esc(lineId)}" data-triangle-from="${esc(sourceName)}" data-triangle-to="${esc(target)}" aria-pressed="${normalizeTerminal(target)===normalizeTerminal(destination)}">Til ${esc(target)}</button>`).join('')}</div>`:''}
-      <div class="sub">${noRoute?'Kjøretid ikke tilgjengelig — ingen avgang kan anbefales':`Estimert kjøring ${c.drive} min · ${s.route.distanceKm} km vei · sikkerhetsmargin ${c.margin} min`}</div>
+      <div class="sub">${noRoute?'Kjøretid ikke tilgjengelig — ingen avgang kan anbefales':`Estimert kjøring ${c.drive} min · ${s.route.distanceKm} km vei · sikkerhetsmargin ${c.margin} min · ${s.route.source==='Statens vegvesen'?'Statens vegvesen':'OSRM-estimat'}`}</div>
       ${latest?`<div class="notice" style="background:#e9f5ee;color:#147d55;border-color:#b8ddc7"><b>Reis senest kl. ${fmt(latest)}</b> for ferja kl. ${fmt(best.expected)}. ${Date.now()>latest.getTime()?'Avreisefristen er passert.':''}</div>`:''}
       ${!c.items.length?'<div class="empty">Ingen avganger funnet i tidsvinduet (Entur).</div>':''}
       ${c.items.length?'<details><summary>Vis avganger</summary>':''}${c.items.map(d=>{const isBest=best===d;const isMiss=d.cancelled||d.when<c.now||(c.drive!=null&&d.when<c.now+(c.drive+c.margin)*60000);
@@ -282,7 +284,7 @@
         <summary class="ferrytop">${timing}${status?`<span class="state">${status}</span>`:''}</summary>
        <div class="departure-info">${label}${details}</div></details>`;}).join('')}${c.items.length?`${enturBusLink(s)}</details>`:enturBusLink(s)}</div>`;
    }).join('');
-   $('results').innerHTML=`<div class="sub">Entur-data hentet ${fmt(data.fetchedAt)} · ${list.length} ferjesamband</div>`+(!list.length?'<div class="empty">Ingen avganger funnet for europaveg-, riksveg- eller fylkesvegferjer i søkeområdet.</div>':'')+renderCards(nearby)+(farther.length?`<details class="farther-connections"><summary>Vis også ${farther.length} samband med over 90 min køyretid</summary>${renderCards(farther)}</details>`:'');
+   $('results').innerHTML=`<div class="sub">Entur-data hentet ${fmt(data.fetchedAt)} · ${list.length} ferjesamband</div>`+(!list.length?'<div class="empty">Ingen avganger funnet for europaveg-, riksveg- eller fylkesvegferjer i søkeområdet.</div>':'')+renderCards(nearby)+(farther.length?`<details class="farther-connections"${fartherWasOpen?' open':''}><summary>Vis også ${farther.length} samband med over 90 min køyretid</summary>${renderCards(farther)}</details>`:'');
    $('mapstatus').textContent='Ferjekaier fra Entur';showMarkers(data.stops);
   }
   async function find(){if(!position&&!selectedPierId){toast('Bruk «Min posisjon» eller velg et startpunkt på kartet.');return;}

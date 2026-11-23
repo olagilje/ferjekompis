@@ -119,6 +119,11 @@
     "priority": 0,
     "road": "E39"
   },
+  "KOL:Line:8_5986": {
+    "name": "Fogn–Judaberg–Helgøy",
+    "priority": 1,
+    "road": "Fv. 519"
+  },
   "KOL:Line:8_5956": {
     "name": "Mekjarvik–Kvitsøy",
     "priority": 1,
@@ -520,8 +525,7 @@
   "SKY:Line:1046": {
     "name": "Vangsnes–Hella–Dragsvik",
     "priority": 0,
-    "road": "Rv. 13",
-    "terminals": ["Vangsnes", "Hella", "Dragsvik"]
+    "road": "Rv. 13"
   },
   "SKY:Line:1047": {
     "name": "Mannheller–Fodnes",
