@@ -13,6 +13,78 @@ async function graphql(query, variables) {
 }
 function haversine(a,b,c,d){const R=6371,toRad=v=>v*Math.PI/180;const x=Math.sin(toRad(c-a)/2)**2+Math.cos(toRad(a))*Math.cos(toRad(c))*Math.sin(toRad(d-b)/2)**2;return 2*R*Math.asin(Math.sqrt(x));}
 function isWater(stop){return stop.transportMode?.includes('water') || stop.transportSubmode?.some(s=>/ferry/i.test(s));}
+function normalizePlace(name){
+ return name.normalize('NFC').toLocaleLowerCase('nb-NO').replace(/\b(?:ferjekai|fergekai|kai)\b/g,'').trim();
+}
+function departures(calls=[]){
+ return calls.filter(call=>{
+  const line=call.serviceJourney?.line;
+  return call.forBoarding&&line?.transportMode==='water'&&Object.hasOwn(roadFerries,line.id);
+ }).map(call=>{
+  const line=call.serviceJourney.line;
+  return {aimed:call.aimedDepartureTime,expected:call.expectedDepartureTime||call.aimedDepartureTime,realtime:call.realtime,cancelled:call.cancellation,destination:call.destinationDisplay?.frontText||'',line:line.name,lineId:line.id,carFerry:true,samband:roadFerries[line.id]};
+ }).sort((a,b)=>Date.parse(a.expected)-Date.parse(b.expected));
+}
+async function nearbyWaterStops([lon,lat]){
+ const radius=0.025;
+ const width=radius/Math.max(.34,Math.cos(lat*Math.PI/180));
+ const data=await graphql(Q_STOPS,{a:lat-radius,b:lon-width,c:lat+radius,d:lon+width});
+ return (data.stopPlacesByBbox||[]).filter(s=>isWater(s)&&Number.isFinite(s.latitude)&&Number.isFinite(s.longitude))
+  .map(s=>({...s,offset:haversine(lat,lon,s.latitude,s.longitude)}))
+  .filter(s=>s.offset<=2)
+  .sort((a,b)=>a.offset-b.offset);
+}
+async function journey(lat,lon,destination){
+ const words=new URLSearchParams({text:destination,size:'1'});
+ const geocoder=await fetch('https://api.entur.io/geocoder/v1/autocomplete?'+words,{headers:HEADERS,signal:AbortSignal.timeout(7000)});
+ if(!geocoder.ok)throw Error('Kunne ikke slå opp reisemålet.');
+ const place=(await geocoder.json()).features?.[0];
+ const fetchedAt=new Date().toISOString();
+ if(!place)return {stops:[],destination,fetchedAt,message:'Fant ikke reisemålet. Prøv et stedsnavn med kommune eller en adresse.'};
+ const label=place.properties?.label||destination;
+ const coordinates=place.geometry.coordinates;
+ const routing=await fetch(`https://router.project-osrm.org/route/v1/driving/${lon},${lat};${coordinates.join(',')}?steps=true&overview=false`,{signal:AbortSignal.timeout(12000)});
+ if(!routing.ok)throw Error('Kunne ikke beregne bilrute til reisemålet.');
+ const steps=(await routing.json()).routes?.[0]?.legs.flatMap(leg=>leg.steps);
+ if(!steps)return {stops:[],destination:label,fetchedAt,message:'Fant ingen bilrute til reisemålet.'};
+ const crossings=[];
+ let elapsed=0, distance=0;
+ for(let i=0;i<steps.length;i++){
+  const step=steps[i];
+  if(step.mode==='ferry'){
+   const crossing={name:step.name||'Ferjestrekning',from:step.maneuver.location,minutes:Math.ceil(elapsed/60),distanceKm:Math.round(distance/100)/10};
+   while(steps[i+1]?.mode==='ferry'){
+    elapsed+=steps[i].duration;
+    distance+=steps[i].distance;
+    i++;
+   }
+   crossing.to=steps[i+1]?.maneuver.location;
+   if(crossing.to)crossings.push(crossing);
+  }
+  elapsed+=steps[i].duration;
+  distance+=steps[i].distance;
+ }
+ if(!crossings.length)return {stops:[],destination:label,fetchedAt,message:'Den beregnede bilruta har ingen ferjestrekninger.'};
+ const terminals=await Promise.all(crossings.map(async crossing=>{
+  const [boarding,landing]=await Promise.all([nearbyWaterStops(crossing.from),nearbyWaterStops(crossing.to)]);
+  return {...crossing,boarding,landing};
+ }));
+ const ids=[...new Set(terminals.flatMap(c=>c.boarding.map(s=>s.id)))];
+ const start=new Date(Date.now()-75*60000).toISOString();
+ const calls=ids.length?(await graphql(Q_CALLS,{ids,start})).stopPlaces||[]:[];
+ const byId=new Map(calls.filter(Boolean).map(s=>[s.id,departures(s.estimatedCalls)]));
+ const unmatched=[];
+ const stops=terminals.flatMap((crossing,index)=>{
+  const landingNames=new Set(crossing.landing.map(s=>normalizePlace(s.name)));
+  const match=crossing.boarding.map(stop=>({stop,calls:(byId.get(stop.id)||[]).filter(call=>landingNames.has(normalizePlace(call.destination)))})).find(s=>s.calls.length);
+  if(!match){unmatched.push(crossing.name);return [];}
+  const {stop,calls}=match;
+  return [{id:stop.id,name:stop.name,lat:stop.latitude,lon:stop.longitude,journeyOrder:index,
+    straightKm:Math.round(haversine(lat,lon,stop.latitude,stop.longitude)*10)/10,
+    route:index===0?{minutes:crossing.minutes,distanceKm:crossing.distanceKm}:null,departures:calls}];
+ });
+ return {stops,destination:label,fetchedAt,...(unmatched.length?{message:'Fant ikke sikre Entur-avganger for '+unmatched.join(', ')+'.'}:{})};
+}
 async function route(lat,lon,stop){
  // OSRM's public demo service is for prototyping ONLY. Replace with contracted router before launch.
  const url=`https://router.project-osrm.org/route/v1/driving/${lon},${lat};${stop.longitude},${stop.latitude}?overview=false`;
@@ -24,8 +96,7 @@ export async function handler(event){
   if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat<57||lat>72||lon<4||lon>32)return reply(400,{error:'Ugyldig norsk GPS-posisjon.'});
   const search=(p.search||'').trim().slice(0,75);
   const destination=(p.destination||'').trim().slice(0,75);
-  const destinationQuery=destination.normalize('NFC').toLocaleLowerCase('nb-NO');
-  const noDestinationMatch='Fant ingen avganger til dette reisemålet i søkeområdet. Tøm reisemålsfeltet for å søke etter alle ferjer i nærheten.';
+  if(destination)return reply(200,await journey(lat,lon,destination));
   const radius=Math.min(0.75,Math.max(0.16,Number(p.radius)||0.75)); // degrees latitude ~18–83 km
   const diffLon=radius/Math.max(.34,Math.cos(lat*Math.PI/180));
   const bounds={a:lat-radius,b:lon-diffLon,c:lat+radius,d:lon+diffLon};
@@ -41,17 +112,7 @@ export async function handler(event){
   const byId=new Map((data.stopPlaces||[]).filter(Boolean).map(s=>[s.id,s]));
   const eligibleStops=stops.flatMap(s=>{
     const details=byId.get(s.id);
-    const calls=(details?.estimatedCalls||[]).filter(c=>{
-      const line=c.serviceJourney?.line;
-      const destinationName=c.destinationDisplay?.frontText||'';
-      return c.forBoarding && line?.transportMode==='water' && Object.hasOwn(roadFerries,line.id) &&
-        (!destinationQuery || destinationName.normalize('NFC').toLocaleLowerCase('nb-NO').includes(destinationQuery));
-    })
-     .map(c=>{
-       const line=c.serviceJourney.line;
-       return {aimed:c.aimedDepartureTime,expected:c.expectedDepartureTime||c.aimedDepartureTime,realtime:c.realtime,cancelled:c.cancellation,destination:c.destinationDisplay?.frontText||'',line:line.name,lineId:line.id,carFerry:true,samband:roadFerries[line.id]};
-     })
-     .sort((a,b)=>new Date(a.expected)-new Date(b.expected));
+    const calls=departures(details?.estimatedCalls);
     if (!calls.length) return [];
     return [{stop:s,calls,priority:Math.min(...calls.map(call=>call.samband.priority))}];
   });
@@ -60,6 +121,6 @@ export async function handler(event){
     id:stop.id,name:stop.name,lat:stop.latitude,lon:stop.longitude,
     straightKm:Math.round(stop.straightKm*10)/10,route:await route(lat,lon,stop),departures:calls
   })));
-  return reply(200,{stops:output,destination,fetchedAt:new Date().toISOString(),routingProvider:'OSRM public demo — ikke produksjonsklar',timetableProvider:'Entur Journey Planner v3',...(destination&&!output.length?{message:noDestinationMatch}:{})});
+  return reply(200,{stops:output,fetchedAt:new Date().toISOString(),routingProvider:'OSRM public demo — ikke produksjonsklar',timetableProvider:'Entur Journey Planner v3'});
  }catch(e){console.error('Ferjekompis API:',e);return reply(502,{error:'Kunne ikke hente ferske opplysninger. '+e.message});}
 }
