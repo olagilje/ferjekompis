@@ -37,6 +37,8 @@
     .ferry{border:1px solid var(--line);border-radius:10px;margin-top:6px}
     .ferry.recommended{background:var(--pale);border-color:#b8ddc7}
     .ferry.recommended{border-radius:15px;padding:13px;margin-top:9px}
+    .connection-card{margin-top:16px}
+    .connection-card + .connection-card{border-top:1px solid var(--line);padding-top:16px}
     .ferry.missed{background:#f6f7f6}
     .ferry > summary{list-style:none;cursor:pointer;padding:6px 10px;min-height:42px;box-sizing:border-box;border-radius:9px}
     .ferry > summary::-webkit-details-marker{display:none}
@@ -209,7 +211,7 @@
     const c=calculate(s);const best=c.recommended;const latest=best&&c.drive!=null?new Date(best.when-(c.drive+c.margin)*60000):null;
     const noRoute=c.drive==null;
     const next=s.departures.find(d=>!d.cancelled&&Date.parse(d.expected)>=c.now);
-    return `<div style="margin-top:16px"><div class="sectionhead" style="margin-bottom:2px"><h2>${esc([s.samband.road,s.samband.name].filter(Boolean).join(' '))}</h2><span class="sub">${s.straightKm} km luftlinje</span></div>
+    return `<div class="connection-card"><div class="sectionhead" style="margin-bottom:2px"><h2>${esc([s.samband.road,s.samband.name].filter(Boolean).join(' '))}</h2><span class="sub">${s.straightKm} km luftlinje</span></div>
       <div class="sectionhead" style="margin-bottom:2px">
        <div class="sub" aria-live="polite">Fra ${esc(s.name)}${s.destination?' til '+esc(s.destination):''} · ${next?'Neste avgang kl. '+fmt(next.expected):'Ingen kommende avgang funnet'}</div>
        <button type="button" class="linkbtn" data-line="${esc(lineId)}" data-direction="${esc(nextDirection?.key||'')}" data-stop="${esc(s.id)}" data-to="${esc(s.destination)}" aria-label="${nextDirection?'Bytt retning til fra '+esc(nextDirection.name)+(nextDirection.destination?' til '+esc(nextDirection.destination):''):'Finn avgang fra den andre kaia'}">⇄ Bytt</button>
@@ -221,10 +223,10 @@
        const label=`<div class="label">${esc(d.destination||d.line||'Ferjeavgang')}${d.realtime?' · Sanntid':' · Rutetid'}${d.carFerry?' · Bilferje':' · Biltransport ikke bekreftet'}</div>`;
        const timing=`<span class="time">${fmt(d.expected)}</span>`;
        const details=`<div class="details"><span>${esc(d.line)}</span><span>${d.when>=c.now?'Om '+Math.max(0,Math.round((d.when-c.now)/60000))+' min':'Avgang passert'}</span></div>`;
-       if(isBest)return `<div class="ferry recommended"><div class="ferrytop"><div>${label}${timing}</div><span class="state">ANBEFALT</span></div>${details}</div>`;
-       const status=d.cancelled?'Innstilt':isMiss?'Rekker ikke':noRoute||!d.carFerry?'Uavklart':'Aktuell';
+       if(isBest)return `<div class="ferry recommended"><div class="ferrytop"><div>${label}${timing}</div></div>${details}</div>`;
+       const status=d.cancelled?'Innstilt':isMiss?'':noRoute||!d.carFerry?'Uavklart':'Aktuell';
        return `<details class="ferry ${isMiss?'missed':''}">
-        <summary class="ferrytop">${timing}<span class="departure-control"><span class="state">${status}</span><span class="departure-arrow" aria-hidden="true">⌄</span></span></summary>
+        <summary class="ferrytop">${timing}<span class="departure-control">${status?`<span class="state">${status}</span>`:''}<span class="departure-arrow" aria-hidden="true">⌄</span></span></summary>
         <div class="departure-info">${label}${details}</div></details>`;}).join('')}${c.items.length?'</details>':''}</div>`;
    }).join('');
    $('mapstatus').textContent='Ferjekaier fra Entur';showMarkers(data.stops);
