@@ -119,7 +119,7 @@
   let pierSearchRequest;
   let pickingLocation=false, locationRequest=0;
   const chosenDirections=new Map();
-  const triangleChoices=new Map(),triangleResults=new Map();
+  const triangleOrigins=new Map(),triangleChoices=new Map(),triangleResults=new Map();
   let departureRequest;
   const toast=msg=>{const e=$('toast');e.textContent=msg;e.style.display='block';clearTimeout(window.__toastTimer);window.__toastTimer=setTimeout(()=>e.style.display='none',4300);};
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -147,7 +147,7 @@
    selectedPierId='';
    $('allnearby').hidden=true;
    chosenDirections.clear();
-   triangleChoices.clear();triangleResults.clear();
+   triangleOrigins.clear();triangleChoices.clear();triangleResults.clear();
    setPickingLocation(false);
    const label=fromMap?'Valgt på kartet':'Din posisjon';
    $('place').textContent=label;
@@ -226,20 +226,24 @@
    const renderCards=connections=>connections.map(connection=>{
     const {lineId,next:nextDirection}=connection;
     let s=connection.direction,destination='',triangle=Array.isArray(connection.nearest.samband.terminals);
+    let sourceName='';
     if(triangle){
-     const origin=connection.nearest;
-     const originDirections=connection.directions.filter(d=>d.id===origin.id);
+     const nearest=connection.nearest;
+     sourceName=triangleOrigins.get(lineId)||nearest.samband.terminals.find(name=>normalizeTerminal(name)===normalizeTerminal(nearest.name))||nearest.name;
+     const originStop=data.stops.find(stop=>normalizeTerminal(stop.name)===normalizeTerminal(sourceName))||nearest;
+     const originDirections=connection.directions.filter(d=>normalizeTerminal(d.name)===normalizeTerminal(sourceName));
      const nextTime=d=>d.departures.map(call=>Date.parse(call.expected)).filter(time=>time>=Date.now()).sort((a,b)=>a-b)[0]??Infinity;
-     const defaultDirection=[...originDirections].sort((a,b)=>nextTime(a)-nextTime(b))[0]||origin;
-     const possibleTargets=origin.samband.terminals.filter(name=>normalizeTerminal(name)!==normalizeTerminal(origin.name));
-     const scheduledDestination=normalizeTerminal(defaultDirection.destination);
-     const defaultTarget=possibleTargets.find(name=>scheduledDestination.includes(normalizeTerminal(name)))||possibleTargets[0]||defaultDirection.destination;
+     const defaultDirection=[...originDirections].sort((a,b)=>nextTime(a)-nextTime(b))[0]||null;
+     const possibleTargets=nearest.samband.terminals.filter(name=>normalizeTerminal(name)!==normalizeTerminal(sourceName));
+     const scheduledDestination=normalizeTerminal(defaultDirection?.destination);
+     const defaultTarget=possibleTargets.find(name=>scheduledDestination.includes(normalizeTerminal(name)))||possibleTargets[0]||'';
      destination=triangleChoices.get(lineId)||defaultTarget;
-     const cached=triangleResults.get(JSON.stringify([lineId,origin.id,destination]));
-     const initialCalls=scheduledDestination.includes(normalizeTerminal(destination))?defaultDirection.departures:[];
-     s={...origin,...cached,samband:origin.samband,destination,departures:cached?.departures||initialCalls};
+     const cached=triangleResults.get(JSON.stringify([lineId,sourceName,destination]));
+     const initialCalls=defaultDirection&&scheduledDestination.includes(normalizeTerminal(destination))?defaultDirection.departures:[];
+     s={...originStop,...defaultDirection,...cached,samband:nearest.samband,name:cached?.name||originStop.name,id:cached?.id||originStop.id,route:cached?.route??originStop.route,destination,departures:cached?.departures||initialCalls};
     }
-    const targets=triangle?s.samband.terminals.filter(name=>normalizeTerminal(name)!==normalizeTerminal(s.name)):[];
+    const origins=triangle?s.samband.terminals:[];
+    const targets=triangle?origins.filter(name=>normalizeTerminal(name)!==normalizeTerminal(sourceName)):[];
     const viaHella=triangle&&[normalizeTerminal(s.name),normalizeTerminal(destination)].sort().join('|')==='dragsvik|vangsnes';
     const c=calculate(s);const best=c.recommended;const latest=best&&c.drive!=null?new Date(best.when-(c.drive+c.margin)*60000):null;
     const noRoute=c.drive==null;
@@ -249,7 +253,7 @@
        <div class="sub" aria-live="polite">Fra ${esc(s.name)}${destination?' til '+esc(destination):''}${viaHella?' · via Hella, same ferje (bilen kan måtte snu)':''} · ${next?'Neste avgang kl. '+fmt(next.expected):'Ingen kommende avgang funnet'}</div>
        ${triangle?'':`<button type="button" class="linkbtn" data-line="${esc(lineId)}" data-direction="${esc(nextDirection?.key||'')}" data-stop="${esc(s.id)}" data-to="${esc(s.destination)}" aria-label="${nextDirection?'Bytt retning til fra '+esc(nextDirection.name)+(nextDirection.destination?' til '+esc(nextDirection.destination):''):'Finn avgang fra den andre kaia'}">⇄ Bytt</button>`}
       </div>
-      ${triangle?`<div class="triangle-targets" role="group" aria-label="Vel reisemål frå ${esc(s.name)}">${targets.map(target=>`<button type="button" class="${normalizeTerminal(target)===normalizeTerminal(destination)?'active':''}" data-triangle-line="${esc(lineId)}" data-triangle-from="${esc(s.id)}" data-triangle-to="${esc(target)}" aria-pressed="${normalizeTerminal(target)===normalizeTerminal(destination)}">Til ${esc(target)}</button>`).join('')}</div>`:''}
+      ${triangle?`<div class="sub">Avreisekai</div><div class="triangle-targets" role="group" aria-label="Vel avreisekai">${origins.map(origin=>`<button type="button" class="${normalizeTerminal(origin)===normalizeTerminal(sourceName)?'active':''}" data-triangle-line="${esc(lineId)}" data-triangle-origin="${esc(origin)}" aria-pressed="${normalizeTerminal(origin)===normalizeTerminal(sourceName)}">${esc(origin)}</button>`).join('')}</div><div class="sub">Reisemål</div><div class="triangle-targets" role="group" aria-label="Vel reisemål frå ${esc(sourceName)}">${targets.map(target=>`<button type="button" class="${normalizeTerminal(target)===normalizeTerminal(destination)?'active':''}" data-triangle-line="${esc(lineId)}" data-triangle-from="${esc(sourceName)}" data-triangle-to="${esc(target)}" aria-pressed="${normalizeTerminal(target)===normalizeTerminal(destination)}">Til ${esc(target)}</button>`).join('')}</div>`:''}
       <div class="sub">${noRoute?'Kjøretid ikke tilgjengelig — ingen avgang kan anbefales':`Estimert kjøring ${c.drive} min · ${s.route.distanceKm} km vei · sikkerhetsmargin ${c.margin} min`}</div>
       ${latest?`<div class="notice" style="background:#e9f5ee;color:#147d55;border-color:#b8ddc7"><b>Reis senest kl. ${fmt(latest)}</b> for ferja kl. ${fmt(best.expected)}. ${Date.now()>latest.getTime()?'Avreisefristen er passert.':''}</div>`:''}
       ${!c.items.length?'<div class="empty">Ingen avganger funnet i tidsvinduet (Entur).</div>':''}
@@ -267,7 +271,7 @@
    $('mapstatus').textContent='Ferjekaier fra Entur';showMarkers(data.stops);
   }
   async function find(){if(!position&&!selectedPierId){toast('Bruk «Min posisjon» eller velg et startpunkt på kartet.');return;}if(mode==='bus'){toast('Bussruter er ikke implementert ennå. Velg Bil for beregning.');return;}
-   triangleChoices.clear();triangleResults.clear();
+   triangleOrigins.clear();triangleChoices.clear();triangleResults.clear();
    const origin=position;
    departureRequest?.abort();
    const request=new AbortController();
@@ -281,13 +285,19 @@
   }
   $('locate').addEventListener('click',locate);$('find').addEventListener('click',find);$('buffer').addEventListener('change',render);
   $('results').addEventListener('click',async event=>{
-   const triangleButton=event.target.closest('button[data-triangle-to]');
+   const triangleButton=event.target.closest('button[data-triangle-line]');
    if(triangleButton){
-    const {triangleLine:line,triangleFrom:from,triangleTo:to}=triangleButton.dataset;
+    const {triangleLine:line}=triangleButton.dataset;
+    const card=groupConnections(data.stops).find(connection=>connection.lineId===line);
+    const terminals=card?.nearest.samband.terminals||[];
+    const from=triangleButton.dataset.triangleOrigin||triangleButton.dataset.triangleFrom;
+    const currentTarget=triangleChoices.get(line);
+    const to=triangleButton.dataset.triangleTo||(currentTarget&&normalizeTerminal(currentTarget)!==normalizeTerminal(from)?currentTarget:terminals.find(name=>normalizeTerminal(name)!==normalizeTerminal(from)));
+    if(!from||!to){toast('Vel både avreisekai og reisemål.');return;}
     const current=data,key=JSON.stringify([line,from,to]);
-    if(triangleResults.has(key)){triangleChoices.set(line,to);render();return;}
+    if(triangleResults.has(key)){triangleOrigins.set(line,from);triangleChoices.set(line,to);render();return;}
     const params=new URLSearchParams(position||{});
-    params.set('lineId',line);params.set('fromStopId',from);params.set('triangleTo',to);
+    params.set('lineId',line);params.set('triangleFrom',from);params.set('triangleTo',to);
     triangleButton.disabled=true;triangleButton.textContent='Hentar …';
     try{
      const response=await fetch('/.netlify/functions/ferjer?'+params,{cache:'no-store'});
@@ -296,7 +306,7 @@
      if(!response.ok)throw Error(result.error||'Kunne ikkje hente avgangar til valt kai.');
      const stop=result.stops?.[0];
      if(!stop)throw Error(result.message||'Fant ikkje avgangar for denne ruta.');
-     triangleResults.set(key,stop);triangleChoices.set(line,to);render();
+     triangleResults.set(key,stop);triangleOrigins.set(line,from);triangleChoices.set(line,to);render();
     }catch(error){if(data===current)toast(error.message);}
     finally{triangleButton.disabled=false;}
     return;
@@ -367,7 +377,7 @@
    if(!button)return;
    selectedPierId=button.dataset.pier;
    chosenDirections.clear();
-   triangleChoices.clear();triangleResults.clear();
+   triangleOrigins.clear();triangleChoices.clear();triangleResults.clear();
    $('allnearby').hidden=false;
    showPierSearch(false);
    find();
@@ -375,7 +385,7 @@
   $('allnearby').addEventListener('click',()=>{
    selectedPierId='';
    chosenDirections.clear();
-   triangleChoices.clear();triangleResults.clear();
+   triangleOrigins.clear();triangleChoices.clear();triangleResults.clear();
    $('allnearby').hidden=true;
    showPierSearch(false);
    if(position){find();return;}

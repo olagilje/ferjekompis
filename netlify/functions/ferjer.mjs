@@ -109,7 +109,12 @@ async function selectedPier(id,origin){
   straightKm:origin?Math.round(haversine(origin.lat,origin.lon,stop.latitude,stop.longitude)*10)/10:null,
   route:origin?await route(origin.lat,origin.lon,stop):null,departures:departures(stop.estimatedCalls)};
 }
-async function triangleDestination(lat,lon,lineId,fromStopId,to){
+async function triangleDestination(lat,lon,lineId,fromName,to){
+ const {line}=await graphql(Q_LINE_STOPS,{id:lineId});
+ const source=(line?.quays||[]).map(quay=>quay.stopPlace?.parent||quay.stopPlace).filter(Boolean)
+  .find(stop=>normalizePlace(stop.name)===normalizePlace(fromName));
+ if(!source)return {stops:[],message:'Fant ikkje avreisekaia for dette sambandet i Entur.'};
+ const fromStopId=source.id;
  const start=new Date(Date.now()-75*60000).toISOString();
  const {stopPlaces}=await graphql(Q_TRIANGLE_CALLS,{ids:[fromStopId],start});
  const stop=stopPlaces?.[0];
@@ -172,11 +177,12 @@ export async function handler(event){
   }
   if(p.triangleTo){
    const terminals=roadFerries[p.lineId]?.terminals;
+   const origin=terminals?.find(name=>normalizePlace(name)===normalizePlace(p.triangleFrom));
    const destination=terminals?.find(name=>normalizePlace(name)===normalizePlace(p.triangleTo));
-   if(!terminals||!/^NSR:StopPlace:\d+$/.test(p.fromStopId||'')||!destination)return reply(400,{error:'Ugyldig kai eller reisemål for trekantsambandet.'});
+   if(!terminals||!origin||!destination||normalizePlace(origin)===normalizePlace(destination))return reply(400,{error:'Ugyldig kai eller reisemål for trekantsambandet.'});
    const originLat=Number.isFinite(lat)&&lat>=57&&lat<=72&&lon>=4&&lon<=32?lat:NaN;
    const originLon=Number.isFinite(lat)&&lat>=57&&lat<=72&&lon>=4&&lon<=32?lon:NaN;
-   return reply(200,await triangleDestination(originLat,originLon,p.lineId,p.fromStopId,destination));
+   return reply(200,await triangleDestination(originLat,originLon,p.lineId,origin,destination));
   }
   const validOrigin=Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=57&&lat<=72&&lon>=4&&lon<=32;
   if(p.lineId){
