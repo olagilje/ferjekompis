@@ -31,6 +31,7 @@
     .sectionhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
     .sectionhead h2{font-size:16px;margin:0}.linkbtn{background:none;color:var(--green);font-size:13px;font-weight:700;padding:5px}
     .notice{background:#fff8e9;border:1px solid #f2e4c4;border-radius:13px;padding:11px 12px;font-size:12px;color:#755b28;margin-top:12px}
+    .via-ferry-note{background:#fff8df;border-color:#f0dfa0;color:#6a5722;padding:8px 10px;margin-top:8px}
     .status{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}.dot{width:8px;height:8px;border-radius:50%;background:var(--gold)}
     .empty{padding:20px 8px;text-align:center;color:var(--muted);font-size:13px}
     .ferry{border:1px solid var(--line);border-radius:10px;margin-top:6px}
@@ -245,6 +246,9 @@
     const viaHella=triangle&&[normalizeTerminal(s.name),normalizeTerminal(destination)].sort().join('|')==='dragsvik|vangsnes';
     const c=calculate(s);const best=c.recommended;const latest=best&&c.drive!=null?new Date(best.when-(c.drive+c.margin)*60000):null;
     const noRoute=c.drive==null;
+    const viaFerryCount=s.route?.viaFerryCount||0;
+    const viaFerries=s.route?.viaFerries||[];
+    const viaFerryText=viaFerries.length?viaFerries.map(esc).join(' og '):viaFerryCount===1?'ei ferje':'fleire ferjer';
     const next=s.departures.find(d=>!d.cancelled&&Date.parse(d.expected)>=c.now);
     return `<div class="connection-card"><div class="sectionhead" style="margin-bottom:2px"><h2>${esc([s.samband.road,s.samband.name].filter(Boolean).join(' '))}</h2>${s.straightKm==null?'':`<span class="sub">${s.straightKm} km luftlinje</span>`}</div>
       <div class="sectionhead" style="margin-bottom:2px">
@@ -253,6 +257,7 @@
       </div>
       ${triangle?`<div class="sub">Avreisekai</div><div class="triangle-targets" role="group" aria-label="Vel avreisekai">${origins.map(origin=>`<button type="button" class="${normalizeTerminal(origin)===normalizeTerminal(sourceName)?'active':''}" data-triangle-line="${esc(lineId)}" data-triangle-origin="${esc(origin)}" aria-pressed="${normalizeTerminal(origin)===normalizeTerminal(sourceName)}">${esc(origin)}</button>`).join('')}</div><div class="sub">Reisemål</div><div class="triangle-targets" role="group" aria-label="Vel reisemål frå ${esc(sourceName)}">${targets.map(target=>`<button type="button" class="${normalizeTerminal(target)===normalizeTerminal(destination)?'active':''}" data-triangle-line="${esc(lineId)}" data-triangle-from="${esc(sourceName)}" data-triangle-to="${esc(target)}" aria-pressed="${normalizeTerminal(target)===normalizeTerminal(destination)}">Til ${esc(target)}</button>`).join('')}</div>`:''}
       <div class="sub">${noRoute?'Kjøretid ikke tilgjengelig — ingen avgang kan anbefales':`Estimert kjøring ${c.drive} min · ${s.route.distanceKm} km vei · sikkerhetsmargin ${c.margin} min`}</div>
+      ${c.drive>90&&viaFerryCount?`<div class="notice via-ferry-note"><b>Ferje undervegs:</b> For å kome til ${esc(s.name)} må du òg ta ${viaFerryText}. Søk etter sambanda for avgangar.</div>`:''}
       ${latest?`<div class="notice" style="background:#e9f5ee;color:#147d55;border-color:#b8ddc7"><b>Reis senest kl. ${fmt(latest)}</b> for ferja kl. ${fmt(best.expected)}. ${Date.now()>latest.getTime()?'Avreisefristen er passert.':''}</div>`:''}
       ${!c.items.length?'<div class="empty">Ingen avganger funnet i tidsvinduet (Entur).</div>':''}
       ${c.items.length?'<details><summary>Vis avganger</summary>':''}${c.items.map(d=>{const isBest=best===d;const isMiss=d.cancelled||d.when<c.now||(c.drive!=null&&d.when<c.now+(c.drive+c.margin)*60000);
