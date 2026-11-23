@@ -3,8 +3,9 @@ const API = 'https://api.entur.io/journey-planner/v3/graphql';
 const CLIENT = process.env.ENTUR_CLIENT_NAME || 'ferjekompis-web';
 const HEADERS = { 'content-type': 'application/json', 'ET-Client-Name': CLIENT };
 const Q_STOPS = `query($a:Float!,$b:Float!,$c:Float!,$d:Float!){stopPlacesByBbox(minimumLatitude:$a,minimumLongitude:$b,maximumLatitude:$c,maximumLongitude:$d,filterByInUse:true){id name latitude longitude transportMode transportSubmode}}`;
-const Q_CALLS = `query($ids:[String],$start:DateTime){stopPlaces(ids:$ids){id name latitude longitude estimatedCalls(startTime:$start,timeRange:43200,numberOfDepartures:45,includeCancelledTrips:true){aimedDepartureTime expectedDepartureTime realtime cancellation forBoarding destinationDisplay{frontText} serviceJourney{line{id name publicCode transportMode transportSubmode}}}}}`;
-const Q_TRIANGLE_CALLS = `query($ids:[String],$start:DateTime){stopPlaces(ids:$ids){id name latitude longitude estimatedCalls(startTime:$start,timeRange:43200,numberOfDepartures:45,includeCancelledTrips:true){aimedDepartureTime expectedDepartureTime realtime cancellation forBoarding destinationDisplay{frontText} serviceJourney{line{id name publicCode transportMode transportSubmode} quays{stopPlace{id name parent{id name}}}}}}}`;
+const FERRY_FILTERS = [{select:[{lines:Object.keys(roadFerries)}]}];
+const Q_CALLS = `query($ids:[String],$start:DateTime,$filters:[EstimatedCallFilterInput!]!){stopPlaces(ids:$ids){id name latitude longitude estimatedCalls(startTime:$start,timeRange:43200,numberOfDepartures:45,includeCancelledTrips:true,filters:$filters){aimedDepartureTime expectedDepartureTime realtime cancellation forBoarding destinationDisplay{frontText} serviceJourney{line{id name publicCode transportMode transportSubmode}}}}}`;
+const Q_TRIANGLE_CALLS = `query($ids:[String],$start:DateTime,$filters:[EstimatedCallFilterInput!]!){stopPlaces(ids:$ids){id name latitude longitude estimatedCalls(startTime:$start,timeRange:43200,numberOfDepartures:45,includeCancelledTrips:true,filters:$filters){aimedDepartureTime expectedDepartureTime realtime cancellation forBoarding destinationDisplay{frontText} serviceJourney{line{id name publicCode transportMode transportSubmode} quays{stopPlace{id name parent{id name}}}}}}}`;
 const Q_LINE_STOPS = `query($id:ID!){line(id:$id){quays{stopPlace{id name latitude longitude parent{id name latitude longitude}}}}}`;
 function reply(code, data) { return {statusCode:code, headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'},body:JSON.stringify(data)}; }
 async function graphql(query, variables) {
@@ -73,7 +74,7 @@ async function journey(lat,lon,destination){
  }));
  const ids=[...new Set(terminals.flatMap(c=>c.boarding.map(s=>s.id)))];
  const start=new Date(Date.now()-75*60000).toISOString();
- const calls=ids.length?(await graphql(Q_CALLS,{ids,start})).stopPlaces||[]:[];
+ const calls=ids.length?(await graphql(Q_CALLS,{ids,start,filters:FERRY_FILTERS})).stopPlaces||[]:[];
  const byId=new Map(calls.filter(Boolean).map(s=>[s.id,departures(s.estimatedCalls)]));
  const unmatched=[];
  const stops=terminals.flatMap((crossing,index)=>{
@@ -112,7 +113,7 @@ async function nearbyPlace(lat,lon){
 }
 async function selectedPier(id,origin,debug=false){
  const start=new Date(Date.now()-75*60000).toISOString();
- const {stopPlaces}=await graphql(Q_CALLS,{ids:[id],start});
+ const {stopPlaces}=await graphql(Q_CALLS,{ids:[id],start,filters:FERRY_FILTERS});
  const stop=stopPlaces?.[0];
  if(!stop)return null;
  const rawCalls=stop.estimatedCalls||[];
@@ -128,7 +129,7 @@ async function triangleDestination(lat,lon,lineId,fromName,to){
  if(!source)return {stops:[],message:'Fant ikkje avreisekaia for dette sambandet i Entur.'};
  const fromStopId=source.id;
  const start=new Date(Date.now()-75*60000).toISOString();
- const {stopPlaces}=await graphql(Q_TRIANGLE_CALLS,{ids:[fromStopId],start});
+ const {stopPlaces}=await graphql(Q_TRIANGLE_CALLS,{ids:[fromStopId],start,filters:FERRY_FILTERS});
  const stop=stopPlaces?.[0];
  if(!stop)return {stops:[],message:'Fant ikkje avreisekaia i Entur.'};
  const target=normalizePlace(to);
@@ -161,7 +162,7 @@ async function otherDirection(lat,lon,lineId,fromStopId,destination){
  const ids=named.length?named.map(stop=>stop.id):[...candidates.keys()];
  if(!ids.length)return [];
  const start=new Date(Date.now()-75*60000).toISOString();
- const {stopPlaces}=await graphql(Q_CALLS,{ids,start});
+ const {stopPlaces}=await graphql(Q_CALLS,{ids,start,filters:FERRY_FILTERS});
  const matches=(stopPlaces||[]).filter(Boolean).flatMap(stop=>{
   const calls=departures(stop.estimatedCalls).filter(call=>call.lineId===lineId);
   const returning=calls.filter(call=>originName&&normalizePlace(call.destination)===originName);
@@ -221,7 +222,7 @@ export async function handler(event){
   stops=stops.slice(0,search?7:60);
   if(!stops.length)return reply(200,{stops:[],destination,fetchedAt:new Date().toISOString(),message:search?'Fant ingen ferjekaier med dette navnet i søkeområdet.':'Ingen registrerte ferjekaier ble funnet i søkeområdet.'});
   const start=new Date(Date.now()-75*60000).toISOString();
-  const data=await graphql(Q_CALLS,{ids:stops.map(s=>s.id),start});
+  const data=await graphql(Q_CALLS,{ids:stops.map(s=>s.id),start,filters:FERRY_FILTERS});
   const byId=new Map((data.stopPlaces||[]).filter(Boolean).map(s=>[s.id,s]));
   const eligibleStops=stops.flatMap(s=>{
     const details=byId.get(s.id);
