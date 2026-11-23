@@ -42,6 +42,7 @@
     .connection-card + .connection-card{border-top:1px solid var(--line);padding-top:16px}
     .farther-connections{margin-top:12px}.farther-connections>summary{cursor:pointer;color:var(--green);font-size:13px;font-weight:700;padding:10px 4px}
     .triangle-targets{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}.triangle-targets button{border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--green);padding:7px 12px;font-size:12px;font-weight:700}.triangle-targets button.active{background:var(--green);border-color:var(--green);color:#fff}.triangle-targets button:disabled{opacity:.6}
+    .triangle-settings{margin-top:5px}.triangle-settings>summary{list-style:none;cursor:pointer;color:var(--green);font-size:12px;font-weight:700;padding:5px 0}.triangle-settings>summary::-webkit-details-marker{display:none}.triangle-settings>summary::before{content:"▸";display:inline-block;width:16px;color:var(--muted)}.triangle-settings[open]>summary::before{content:"▾"}
     .results-actions{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
     .refreshbtn{background:var(--pale);color:var(--green);border-radius:999px;padding:6px 10px;min-height:36px;font-size:12px;font-weight:700}
     .refreshbtn:disabled{opacity:.6;cursor:default}
@@ -58,6 +59,7 @@
     .state{font-size:11px;font-weight:750;border-radius:20px;padding:5px 8px;background:#edf1ed;color:var(--muted)}
     .recommended .state{background:#d4eddd;color:var(--green)}.missed .state{background:#f6e1e1;color:var(--red)}
     .details{display:flex;gap:16px;margin-top:8px;color:var(--muted);font-size:12px}
+    .departure-details{flex-wrap:wrap}
     .details b{color:var(--ink);font-weight:650}
     .settings{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
     select{background:#f5f7f5;border:1px solid var(--line);border-radius:10px;padding:9px;color:var(--ink)}
@@ -235,6 +237,7 @@
   }
   function render(){if(!data)return;
    const fartherWasOpen=$('results').querySelector('.farther-connections')?.open??false;
+   const openTriangleSettings=new Set([...$('results').querySelectorAll('details.triangle-settings[open]')].map(details=>details.dataset.triangleControls));
    const list=groupConnections(data.stops);
    const automaticView=!selectedPierId;
    const driveMinutes=connection=>calculate(connection.nearest).drive;
@@ -270,7 +273,7 @@
        <div class="sub" aria-live="polite">Fra ${esc(s.name)}${destination?' til '+esc(destination):''}${viaHella?' · via Hella, same ferje (bilen kan måtte snu)':''} · ${next?'Neste avgang kl. '+fmt(next.expected):'Ingen kommende avgang funnet'}</div>
        ${triangle?'':`<button type="button" class="linkbtn" data-line="${esc(lineId)}" data-direction="${esc(nextDirection?.key||'')}" data-stop="${esc(s.id)}" data-to="${esc(s.destination)}" aria-label="${nextDirection?'Bytt retning til fra '+esc(nextDirection.name)+(nextDirection.destination?' til '+esc(nextDirection.destination):''):'Finn avgang fra den andre kaia'}">⇄ Bytt</button>`}
       </div>
-      ${triangle?`<div class="sub">Avreisekai</div><div class="triangle-targets" role="group" aria-label="Vel avreisekai">${origins.map(origin=>`<button type="button" class="${normalizeTerminal(origin)===normalizeTerminal(sourceName)?'active':''}" data-triangle-line="${esc(lineId)}" data-triangle-origin="${esc(origin)}" aria-pressed="${normalizeTerminal(origin)===normalizeTerminal(sourceName)}">${esc(origin)}</button>`).join('')}</div><div class="sub">Reisemål</div><div class="triangle-targets" role="group" aria-label="Vel reisemål frå ${esc(sourceName)}">${targets.map(target=>`<button type="button" class="${normalizeTerminal(target)===normalizeTerminal(destination)?'active':''}" data-triangle-line="${esc(lineId)}" data-triangle-from="${esc(sourceName)}" data-triangle-to="${esc(target)}" aria-pressed="${normalizeTerminal(target)===normalizeTerminal(destination)}">Til ${esc(target)}</button>`).join('')}</div>`:''}
+      ${triangle?`<details class="triangle-settings" data-triangle-controls="${esc(lineId)}"${openTriangleSettings.has(lineId)?' open':''}><summary>Endre avreisekai eller reisemål</summary><div class="sub">Avreisekai</div><div class="triangle-targets" role="group" aria-label="Vel avreisekai">${origins.map(origin=>`<button type="button" class="${normalizeTerminal(origin)===normalizeTerminal(sourceName)?'active':''}" data-triangle-line="${esc(lineId)}" data-triangle-origin="${esc(origin)}" aria-pressed="${normalizeTerminal(origin)===normalizeTerminal(sourceName)}">${esc(origin)}</button>`).join('')}</div><div class="sub">Reisemål</div><div class="triangle-targets" role="group" aria-label="Vel reisemål frå ${esc(sourceName)}">${targets.map(target=>`<button type="button" class="${normalizeTerminal(target)===normalizeTerminal(destination)?'active':''}" data-triangle-line="${esc(lineId)}" data-triangle-from="${esc(sourceName)}" data-triangle-to="${esc(target)}" aria-pressed="${normalizeTerminal(target)===normalizeTerminal(destination)}">Til ${esc(target)}</button>`).join('')}</div></details>`:''}
       <div class="sub">${noRoute?'Kjøretid ikke tilgjengelig — ingen avgang kan anbefales':`Estimert kjøring ${c.drive} min · ${s.route.distanceKm} km vei · sikkerhetsmargin ${c.margin} min · ${s.route.source==='Statens vegvesen'?'Statens vegvesen':'OSRM-estimat'}`}</div>
       ${latest?`<div class="notice" style="background:#e9f5ee;color:#147d55;border-color:#b8ddc7"><b>Reis senest kl. ${fmt(latest)}</b> for ferja kl. ${fmt(best.expected)}. ${Date.now()>latest.getTime()?'Avreisefristen er passert.':''}</div>`:''}
       ${!c.items.length?'<div class="empty">Ingen avganger funnet i tidsvinduet (Entur).</div>':''}
@@ -278,11 +281,13 @@
        const label=`<div class="label">${esc(d.destination||d.line||'Ferjeavgang')}${d.realtime?' · Sanntid':' · Rutetid'}${d.carFerry?' · Bilferje':' · Biltransport ikke bekreftet'}</div>`;
        const timing=`<span class="time">${fmt(d.expected)}</span>`;
        const details=`<div class="details"><span>${esc(d.line)}</span><span>${d.when>=c.now?'Om '+Math.max(0,Math.round((d.when-c.now)/60000))+' min':'Avgang passert'}</span></div>`;
+       const driveDeadline=c.drive!=null&&!d.cancelled?new Date(d.when-(c.drive+c.margin)*60000):null;
+       const expandedDetails=`<div class="details departure-details"><span>${esc(d.line)}</span><span>${d.when>=c.now?'Om '+Math.max(0,Math.round((d.when-c.now)/60000))+' min':'Avgang passert'}</span>${driveDeadline?`<span>${driveDeadline.getTime()>=c.now?'Køyr seinast kl.':'Køyrefristen passerte kl.'} ${fmt(driveDeadline)}</span>`:''}</div>`;
        if(isBest)return `<div class="ferry recommended"><div class="ferrytop"><div>${label}${timing}</div></div>${details}</div>`;
        const status=d.cancelled?'Innstilt':position&&!isMiss&&!d.carFerry?'Uavklart':'';
        return `<details class="ferry ${isMiss?'missed':''}">
         <summary class="ferrytop">${timing}${status?`<span class="state">${status}</span>`:''}</summary>
-       <div class="departure-info">${label}${details}</div></details>`;}).join('')}${c.items.length?`${enturBusLink(s)}</details>`:enturBusLink(s)}</div>`;
+       <div class="departure-info">${label}${expandedDetails}</div></details>`;}).join('')}${c.items.length?`${enturBusLink(s)}</details>`:enturBusLink(s)}</div>`;
    }).join('');
    $('results').innerHTML=`<div class="sub">Entur-data hentet ${fmt(data.fetchedAt)} · ${list.length} ferjesamband</div>`+(!list.length?'<div class="empty">Ingen avganger funnet for europaveg-, riksveg- eller fylkesvegferjer i søkeområdet.</div>':'')+renderCards(nearby)+(farther.length?`<details class="farther-connections"${fartherWasOpen?' open':''}><summary>Vis også ${farther.length} samband med over 90 min køyretid</summary>${renderCards(farther)}</details>`:'');
    $('mapstatus').textContent='Ferjekaier fra Entur';showMarkers(data.stops);
